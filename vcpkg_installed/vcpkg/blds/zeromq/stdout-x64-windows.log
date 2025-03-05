@@ -1,0 +1,26 @@
+-- Downloading https://github.com/zeromq/libzmq/archive/v4.3.5.tar.gz -> zeromq-libzmq-v4.3.5.tar.gz...
+-- Extracting source C:/Users/Duke/AppData/Local/vcpkg/downloads/zeromq-libzmq-v4.3.5.tar.gz
+-- Applying patch fix-arm.patch
+-- Using source at //Desktop-8n7nb0d/d/UnrealProjects/C7_building_UE4/vcpkg_installed/vcpkg/blds/zeromq/src/v4.3.5-37c87b6b8c.clean
+-- Downloading https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-pkgconf-1~2.2.0-1-any.pkg.tar.zst;https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-pkgconf-1~2.2.0-1-any.pkg.tar.zst;https://mirror.yandex.ru/mirrors/msys2/mingw/mingw64/mingw-w64-x86_64-pkgconf-1~2.2.0-1-any.pkg.tar.zst;https://mirrors.tuna.tsinghua.edu.cn/msys2/mingw/mingw64/mingw-w64-x86_64-pkgconf-1~2.2.0-1-any.pkg.tar.zst;https://mirrors.ustc.edu.cn/msys2/mingw/mingw64/mingw-w64-x86_64-pkgconf-1~2.2.0-1-any.pkg.tar.zst;https://mirror.selfnet.de/msys2/mingw/mingw64/mingw-w64-x86_64-pkgconf-1~2.2.0-1-any.pkg.tar.zst -> msys2-mingw-w64-x86_64-pkgconf-1~2.2.0-1-any.pkg.tar.zst...
+-- Downloading https://mirror.msys2.org/msys/x86_64/msys2-runtime-3.5.3-3-x86_64.pkg.tar.zst;https://repo.msys2.org/msys/x86_64/msys2-runtime-3.5.3-3-x86_64.pkg.tar.zst;https://mirror.yandex.ru/mirrors/msys2/msys/x86_64/msys2-runtime-3.5.3-3-x86_64.pkg.tar.zst;https://mirrors.tuna.tsinghua.edu.cn/msys2/msys/x86_64/msys2-runtime-3.5.3-3-x86_64.pkg.tar.zst;https://mirrors.ustc.edu.cn/msys2/msys/x86_64/msys2-runtime-3.5.3-3-x86_64.pkg.tar.zst;https://mirror.selfnet.de/msys2/msys/x86_64/msys2-runtime-3.5.3-3-x86_64.pkg.tar.zst -> msys2-msys2-runtime-3.5.3-3-x86_64.pkg.tar.zst...
+-- Using msys root at C:/Users/Duke/AppData/Local/vcpkg/downloads/tools/msys2/1e74ca60daa10104
+-- Found external ninja('1.12.1').
+-- Configuring x64-windows
+CMake Error at scripts/cmake/vcpkg_execute_required_process.cmake:127 (message):
+    Command failed: "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v
+    Working Directory: //Desktop-8n7nb0d/d/UnrealProjects/C7_building_UE4/vcpkg_installed/vcpkg/blds/zeromq/x64-windows-rel/vcpkg-parallel-configure
+    Error code: 1
+    See logs for more information:
+      \\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-dbg-CMakeCache.txt.log
+      \\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-rel-CMakeCache.txt.log
+      \\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-dbg-CMakeConfigureLog.yaml.log
+      \\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-rel-CMakeConfigureLog.yaml.log
+      \\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-out.log
+
+Call Stack (most recent call first):
+  //Desktop-8n7nb0d/d/UnrealProjects/C7_building_UE4/vcpkg_installed/x64-windows/share/vcpkg-cmake/vcpkg_cmake_configure.cmake:269 (vcpkg_execute_required_process)
+  C:/Users/Duke/AppData/Local/vcpkg/registries/git-trees/454f5e2648cea10a305d0e781fd3093073153a2e/portfile.cmake:30 (vcpkg_cmake_configure)
+  scripts/ports.cmake:192 (include)
+
+

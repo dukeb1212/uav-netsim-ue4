@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.IO;
 using UnrealBuildTool;
 
 public class UAVNetSim : ModuleRules
@@ -8,9 +10,20 @@ public class UAVNetSim : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json", "JsonUtilities" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+        // Path to ZeroMQ include and library directories installed by vcpkg
+        string VcpkgIncludePath = "D:/UnrealProjects/UAVNetSim/vcpkg_installed/x64-windows/include";
+        string VcpkgLibraryPath = "D:/UnrealProjects/UAVNetSim/vcpkg_installed/x64-windows/lib";
+        string VcpkgBinariesPath = "D:/UnrealProjects/UAVNetSim/vcpkg_installed/x64-windows/bin";
+        RuntimeDependencies.Add(Path.Combine(VcpkgBinariesPath, "libzmq-mt-4_3_5.dll"));
+
+        PublicIncludePaths.Add(VcpkgIncludePath);
+        PublicLibraryPaths.Add(VcpkgLibraryPath);
+        PublicAdditionalLibraries.Add(Path.Combine(VcpkgLibraryPath, "libzmq-mt-4_3_5.lib"));
+
+
+        PrivateDependencyModuleNames.AddRange(new string[] {  });
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

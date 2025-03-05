@@ -1,0 +1,8 @@
+Checking patch CMakeLists.txt...
+Hunk #1 succeeded at 562 (offset 11 lines).
+Hunk #2 succeeded at 1501 (offset 47 lines).
+Hunk #3 succeeded at 1555 (offset 52 lines).
+Checking patch src/clock.cpp...
+Hunk #1 succeeded at 14 (offset -27 lines).
+Applied patch CMakeLists.txt cleanly.
+Applied patch src/clock.cpp cleanly.

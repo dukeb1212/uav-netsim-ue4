@@ -1,0 +1,5 @@
+\\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-dbg-CMakeCache.txt.log
+\\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-rel-CMakeCache.txt.log
+\\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-dbg-CMakeConfigureLog.yaml.log
+\\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-rel-CMakeConfigureLog.yaml.log
+\\Desktop-8n7nb0d\d\UnrealProjects\C7_building_UE4\vcpkg_installed\vcpkg\blds\zeromq\config-x64-windows-out.log
