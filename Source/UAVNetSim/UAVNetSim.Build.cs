@@ -12,10 +12,26 @@ public class UAVNetSim : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json", "JsonUtilities", "AirSim" });
 
+        string EnvFilePath = Path.Combine(ModuleDirectory, "..", "..", ".env");
+
+        string VcpkgRootPath = "E:/UnrealProjects/UAVNetSim/vcpkg_installed";
+
+        if (File.Exists(EnvFilePath))
+        {
+            foreach (string line in File.ReadAllLines(EnvFilePath))
+            {
+                string[] parts = line.Split('=');
+                if (parts.Length == 2 && parts[0].Trim() == "VCPKG_ROOT")
+                {
+                    VcpkgRootPath = parts[1].Trim();
+                    break;
+                }
+            }
+        }
         // Path to ZeroMQ include and library directories installed by vcpkg
-        string VcpkgIncludePath = "D:/UnrealProjects/UAVNetSim/vcpkg_installed/x64-windows/include";
-        string VcpkgLibraryPath = "D:/UnrealProjects/UAVNetSim/vcpkg_installed/x64-windows/lib";
-        string VcpkgBinariesPath = "D:/UnrealProjects/UAVNetSim/vcpkg_installed/x64-windows/bin";
+        string VcpkgIncludePath = Path.Combine(VcpkgRootPath, "x64-windows", "include");
+        string VcpkgLibraryPath = Path.Combine(VcpkgRootPath, "x64-windows", "lib");
+        string VcpkgBinariesPath = Path.Combine(VcpkgRootPath, "x64-windows", "bin");
         RuntimeDependencies.Add(Path.Combine(VcpkgBinariesPath, "libzmq-mt-4_3_5.dll"));
 
         PublicIncludePaths.Add(VcpkgIncludePath);
