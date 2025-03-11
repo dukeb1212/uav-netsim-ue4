@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Telemetry.h"
+#include "DataStruct/Telemetry.h"
 
 Telemetry::Telemetry()
 {
