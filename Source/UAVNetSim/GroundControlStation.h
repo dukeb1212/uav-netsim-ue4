@@ -20,8 +20,17 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	// AirSim client
+	msr::airlib::MultirotorRpcLibClient* AirSimClient;
 
 public:	
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsConnected;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Drone Control Settings")
+	float DefaultAltitude = 1.8f;
+
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -36,8 +45,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void DisarmDrone();
 
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void TakeOffToHeight(float TargetHeight);
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void Takeoff();
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void CheckConnection();
+
 private:
-	// AirSim client
-	msr::airlib::MultirotorRpcLibClient* AirSimClient;
+	FTimerHandle ConnectionCheckTimer;
 
 };
