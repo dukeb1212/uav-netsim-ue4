@@ -28,15 +28,21 @@ public class UAVNetSim : ModuleRules
                 }
             }
         }
-        // Path to ZeroMQ include and library directories installed by vcpkg
+        // Path to vcpkg include and library directories
         string VcpkgIncludePath = Path.Combine(VcpkgRootPath, "x64-windows", "include");
         string VcpkgLibraryPath = Path.Combine(VcpkgRootPath, "x64-windows", "lib");
         string VcpkgBinariesPath = Path.Combine(VcpkgRootPath, "x64-windows", "bin");
-        RuntimeDependencies.Add(Path.Combine(VcpkgBinariesPath, "libzmq-mt-4_3_5.dll"));
 
         PublicIncludePaths.Add(VcpkgIncludePath);
         PublicLibraryPaths.Add(VcpkgLibraryPath);
+
+        // Add runtime dependencies
+        RuntimeDependencies.Add(Path.Combine(VcpkgBinariesPath, "libzmq-mt-4_3_5.dll"));
+        RuntimeDependencies.Add(Path.Combine(VcpkgBinariesPath, "opencv_world4.dll"));
+
+        // Add libraries
         PublicAdditionalLibraries.Add(Path.Combine(VcpkgLibraryPath, "libzmq-mt-4_3_5.lib"));
+        PublicAdditionalLibraries.Add(Path.Combine(VcpkgLibraryPath, "opencv_world4.lib"));
 
 
         PrivateDependencyModuleNames.AddRange(new string[] {  });
