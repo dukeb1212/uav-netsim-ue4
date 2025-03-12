@@ -4,7 +4,17 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "vehicles/multirotor/api/MultirotorRpcLibClient.hpp"
+#include "Delegates/Delegate.h"
+#include "DataStruct/Telemetry.h"
+
+#ifdef check
+#undef check
+#endif
+
+#include "opencv2/opencv.hpp"
 #include "GroundControlStation.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVideoFrameReceived, const FString&, UAVName, UTexture2D*, VideoTexture);
 
 UCLASS()
 class UAVNETSIM_API AGroundControlStation : public APawn
@@ -28,8 +38,17 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsConnected;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Drone Control Settings")
-	float DefaultAltitude = 1.8f;
+	//UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Drone Control Settings")
+	//float DefaultAltitude = 1.8f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Drone Data")
+	TArray<FTelemetryData> ListTelemetryData;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Drone Data")
+	TArray<FString> ListUAVName = { TEXT("uav1") };
+
+	UPROPERTY(BlueprintAssignable, Category = "Video Streaming")
+	FOnVideoFrameReceived OnVideoFrameReceived;
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -54,7 +73,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void CheckConnection();
 
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void GetTelemetryData();
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void GetLastestVideoFrame(FString UAVName);
+
+	void HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture);
+
 private:
 	FTimerHandle ConnectionCheckTimer;
 
+	void SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction);
+
+	UTexture2D* ConvertImageToTexture(const cv::Mat& Image);
 };
