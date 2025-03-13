@@ -4,8 +4,10 @@
     "cppzmq",
     {
       "name": "opencv4",
-      "features": [ "world" ]
+      "features": [
+        "world"
+      ]
     }
   ],
-  "builtin-baseline": "5e5d0e1cd7785623065e77eff011afdeec1a3574"
+  "builtin-baseline": "117524bad2789b8aa6954324a1bee4bffb7d6d09"
 }

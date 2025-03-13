@@ -20,7 +20,7 @@ void AGroundControlStation::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	GetWorldTimerManager().SetTimer(ConnectionCheckTimer, this, &AGroundControlStation::CheckConnection, 2.0f, true);
+	GetWorldTimerManager().SetTimer(ConnectionCheckTimer, this, &AGroundControlStation::CheckConnection, 1.0f, true);
 	// Confirm connection with AirSim
 	/*AirSimClient->confirmConnection();
 	*/
@@ -103,7 +103,8 @@ void AGroundControlStation::CheckConnection()
 {
 	try
 	{
-		auto home_point = AirSimClient->getHomeGeoPoint(); // Try to confirm connection
+		AirSimClient->confirmConnection();
+		//auto home_point = AirSimClient->getHomeGeoPoint(); // Try to confirm connection
 		AirSimClient->enableApiControl(true);
 		if (!bIsConnected)
 		{
@@ -116,7 +117,10 @@ void AGroundControlStation::CheckConnection()
 		if (bIsConnected)
 		{
 			bIsConnected = false; // Mark as disconnected
-			UE_LOG(LogTemp, Warning, TEXT("Lost connection to AirSim!"));
+			UE_LOG(LogTemp, Warning, TEXT("Lost connection to AirSim! Retrying..."));
+
+			delete AirSimClient;
+			AirSimClient = new msr::airlib::MultirotorRpcLibClient();
 		}
 	}
 }
@@ -136,35 +140,44 @@ void AGroundControlStation::GetTelemetryData()
 			{
 				AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, UAVName, &NewTelemetryData]()
 					{
-						// Get drone state from AirSim
-						auto drone_state = AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName));
+						try
+						{
+							// Get drone state from AirSim
+							auto drone_state = AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName));
 
-						FTelemetryData Telemetry;
-						Telemetry.Name = UAVName;
-						Telemetry.Position = FVector(drone_state.getPosition().x(), drone_state.getPosition().y(), -drone_state.getPosition().z());
-						Telemetry.Velocity = FVector(drone_state.kinematics_estimated.accelerations.linear.x(), drone_state.kinematics_estimated.accelerations.linear.y(), drone_state.kinematics_estimated.accelerations.linear.z());
-						Telemetry.BatteryLevel = 100.0f;  // Placeholder
-						Telemetry.IsConnected = AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName));
+							FTelemetryData Telemetry;
+							Telemetry.Name = UAVName;
+							Telemetry.Position = FVector(drone_state.getPosition().x(), drone_state.getPosition().y(), -drone_state.getPosition().z());
+							Telemetry.Velocity = FVector(drone_state.kinematics_estimated.accelerations.linear.x(), drone_state.kinematics_estimated.accelerations.linear.y(), drone_state.kinematics_estimated.accelerations.linear.z());
+							Telemetry.BatteryLevel = 100.0f;  // Placeholder
+							Telemetry.IsConnected = AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName));
 
-						// Push telemetry data to the main thread
-						AsyncTask(ENamedThreads::GameThread, [this, Telemetry]()
-							{
-								// Check if telemetry data for this UAV already exists
-								for (FTelemetryData& ExistingTelemetry : ListTelemetryData)
+							// Push telemetry data to the main thread
+							AsyncTask(ENamedThreads::GameThread, [this, Telemetry]()
 								{
-									if (ExistingTelemetry.Name == Telemetry.Name)
+									// Check if telemetry data for this UAV already exists
+									for (FTelemetryData& ExistingTelemetry : ListTelemetryData)
 									{
-										// Update existing telemetry entry
-										ExistingTelemetry = Telemetry;
-										//UE_LOG(LogTemp, Log, TEXT("Telemetry updated for %s"), *Telemetry.Name);
-										return;
+										if (ExistingTelemetry.Name == Telemetry.Name)
+										{
+											// Update existing telemetry entry
+											ExistingTelemetry = Telemetry;
+											//UE_LOG(LogTemp, Log, TEXT("Telemetry updated for %s"), *Telemetry.Name);
+											return;
+										}
 									}
-								}
 
-								// If not found, add as a new entry
-								ListTelemetryData.Add(Telemetry);
-								//UE_LOG(LogTemp, Log, TEXT("Telemetry added for %s"), *Telemetry.Name);
-							});
+									// If not found, add as a new entry
+									ListTelemetryData.Add(Telemetry);
+									//UE_LOG(LogTemp, Log, TEXT("Telemetry added for %s"), *Telemetry.Name);
+								});
+						}
+						catch (const std::exception& e)
+						{
+							UE_LOG(LogTemp, Error, TEXT("Exception in GetLastestVideoFrame: %s"), UTF8_TO_TCHAR(e.what()));
+							bIsConnected = false;
+						}
+						
 					});
 			});
 	}
@@ -186,33 +199,37 @@ void AGroundControlStation::GetLastestVideoFrame(FString UAVName)
 
 					AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, UAVName]() {
 						// Get latest video frame from AirSim
-						std::vector<uint8_t> ImageData = AirSimClient->simGetImage("0", msr::airlib::ImageCaptureBase::ImageType::Scene, TCHAR_TO_UTF8(*UAVName));
-
-						if (ImageData.empty())
+						try
 						{
-							UE_LOG(LogTemp, Warning, TEXT("Failed to retrieve video frame for %s"), *UAVName);
-							return;
-						}
+							std::vector<uint8_t> ImageData = AirSimClient->simGetImage("0", msr::airlib::ImageCaptureBase::ImageType::Scene, TCHAR_TO_UTF8(*UAVName));
 
-						cv::Mat DecodedImage = cv::imdecode(cv::Mat(ImageData), cv::IMREAD_COLOR);
-						if (DecodedImage.empty())
-						{
-							UE_LOG(LogTemp, Error, TEXT("Failed to decode image for %s"), *UAVName);
-							return;
-						}
+							if (ImageData.empty())
+							{
+								UE_LOG(LogTemp, Warning, TEXT("Failed to retrieve video frame for %s"), *UAVName);
+								return;
+							}
 
-						//UE_LOG(LogTemp, Log, TEXT("Decoded image resolution: %d x %d"), DecodedImage.cols, DecodedImage.rows);
+							cv::Mat DecodedImage = cv::imdecode(cv::Mat(ImageData), cv::IMREAD_COLOR);
+							if (DecodedImage.empty())
+							{
+								UE_LOG(LogTemp, Error, TEXT("Failed to decode image for %s"), *UAVName);
+								return;
+							}
 
-						UTexture2D* VideoFrame = ConvertImageToTexture(DecodedImage);
-
-						// Push image data to the main thread
-						if (VideoFrame)
-						{
-							// Send to GameThread for final processing
-							AsyncTask(ENamedThreads::GameThread, [this, UAVName, VideoFrame]()
+							AsyncTask(ENamedThreads::GameThread, [this, UAVName, DecodedImage]()
 								{
-									HandleVideoFrame(UAVName, VideoFrame);
+									UTexture2D* VideoFrame = ConvertImageToTexture(DecodedImage);
+
+									if (VideoFrame)
+									{
+										HandleVideoFrame(UAVName, VideoFrame);
+									}
 								});
+						}
+						catch (const std::exception& e)
+						{
+							UE_LOG(LogTemp, Error, TEXT("Exception in GetLastestVideoFrame: %s"), UTF8_TO_TCHAR(e.what()));
+							bIsConnected = false;
 						}
 					});
 				});
@@ -280,12 +297,12 @@ UTexture2D* AGroundControlStation::ConvertImageToTexture(const cv::Mat& Image)
 	}
 	Texture->SRGB = 0;
 	Texture->AddToRoot();
-	Texture->UpdateResource();
 
 	// Copy image data to texture
 	uint8* TextureData = (uint8*)Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 	FMemory::Memcpy(TextureData, ProcessedImage.data, ProcessedImage.total() * ProcessedImage.elemSize());
 	Texture->PlatformData->Mips[0].BulkData.Unlock();
+
 	Texture->UpdateResource();
 	return Texture;
 }
@@ -304,5 +321,8 @@ void AGroundControlStation::HandleVideoFrame(const FString& UAVName, UTexture2D*
 // Cleanup
 AGroundControlStation::~AGroundControlStation()
 {
-
+	if (AirSimClient) {
+		delete AirSimClient;
+		AirSimClient = nullptr;
+	}
 }
