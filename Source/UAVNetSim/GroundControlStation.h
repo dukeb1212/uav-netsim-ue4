@@ -30,13 +30,19 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	// AirSim client
-	msr::airlib::MultirotorRpcLibClient* AirSimClient;
+	std::unique_ptr<msr::airlib::MultirotorRpcLibClient> AirSimClient;
 
 public:	
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsConnected;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bTaskResult;
+
+	TMap<FString, msr::airlib::LandedState> AllLandedStates;
 
 	//UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Drone Control Settings")
 	//float DefaultAltitude = 1.8f;
@@ -58,17 +64,23 @@ public:
 
 	// Function to arm the drone
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
-	void ArmDrone();
+	void ArmDrone(FString UAVName);
 
 	// Function to disarm the drone
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
-	void DisarmDrone();
+	void DisarmDrone(FString UAVName);
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
-	void TakeOffToHeight(float TargetHeight);
+	void Takeoff(FString UAVName);
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
-	void Takeoff();
+	void Land(FString UAVName);
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void Hover(FString UAVName);
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	int64 GetLandedState(FString UAVName);
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void CheckConnection();
@@ -77,12 +89,25 @@ public:
 	void GetTelemetryData();
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
-	void GetLastestVideoFrame(FString UAVName);
+	void GetLastestVideoFrame(FString UAVName, bool IsCapture = false, FString FilePath = "");
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void MoveToLocation(FString UAVName, FVector Location, float Velocity, float Timeout);
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void MoveByPath(FString UAVName, const TArray<FVector>& Path, float Velocity, float Timeout);
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void MoveByVelocitySameZ(FString UAVName, FVector2D VelocityXY, float Z, float Timeout);
 
 	void HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture);
 
 private:
 	FTimerHandle ConnectionCheckTimer;
+
+	float OffsetZ;
+
+	bool bShuttingDown;
 
 	void SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction);
 
