@@ -21,7 +21,13 @@ struct FTelemetryData
     FVector Position;
 
     UPROPERTY(BlueprintReadOnly, Category = "Telemetry")
+    FVector GPS;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Telemetry")
     FVector Velocity;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Telemetry")
+    int64 Timestamp;
 
     UPROPERTY(BlueprintReadOnly, Category = "Telemetry")
     float BatteryLevel;
