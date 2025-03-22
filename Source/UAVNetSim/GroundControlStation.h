@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "vehicles/multirotor/api/MultirotorRpcLibClient.hpp"
+#include "PIPCamera.h"
+#include "common/common_utils/UniqueValueMap.hpp"
 #include "Delegates/Delegate.h"
 #include "DataStruct/Telemetry.h"
 
@@ -14,7 +16,7 @@
 #include "opencv2/opencv.hpp"
 #include "GroundControlStation.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVideoFrameReceived, const FString&, UAVName, UTexture2D*, VideoTexture);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVideoFrameReceived, const FString&, UAVName, UTextureRenderTarget2D*, VideoRenderTarget);
 
 UCLASS()
 class UAVNETSIM_API AGroundControlStation : public APawn
@@ -31,13 +33,11 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	// AirSim client
-	std::unique_ptr<msr::airlib::MultirotorRpcLibClient> AirSimClient;
 
 public:	
 
 	UPROPERTY(BlueprintReadOnly)
-	bool bIsConnected;
+	bool bIsConnected = false;
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bTaskResult;
@@ -83,9 +83,6 @@ public:
 	int64 GetLandedState(FString UAVName);
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
-	void CheckConnection();
-
-	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void GetTelemetryData();
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
@@ -103,13 +100,18 @@ public:
 	void HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture);
 
 private:
+	// AirSim client
+	std::unique_ptr<msr::airlib::MultirotorRpcLibClient> AirSimClient;
+
 	FTimerHandle ConnectionCheckTimer;
 
 	float OffsetZ;
 
-	bool bShuttingDown;
+	bool bShuttingDown = false;
 
 	void SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction);
+
+	void CheckConnection();
 
 	UTexture2D* ConvertImageToTexture(const cv::Mat& Image);
 };

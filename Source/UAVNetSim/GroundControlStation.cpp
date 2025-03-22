@@ -5,6 +5,8 @@
 #include "Engine/Engine.h"
 #include "NetworkStateInstance.h"
 #include "Async/Async.h"
+#include "Vehicles/Multirotor/FlyingPawn.h"
+#include "Kismet/GameplayStatics.h"
 #include <opencv2/imgcodecs.hpp>
 #include <fstream>
 
@@ -18,8 +20,7 @@ AGroundControlStation::AGroundControlStation()
 	bShuttingDown = false;
 	bTaskResult = false;
 	OffsetZ = -1212;
-	for (FString UAVName : ListUAVName)
-	{
+	for (FString UAVName : ListUAVName) {
 		AllLandedStates.Add(UAVName, msr::airlib::LandedState::Landed);
 	}
 }
@@ -28,12 +29,12 @@ AGroundControlStation::AGroundControlStation()
 void AGroundControlStation::BeginPlay()
 {
 	Super::BeginPlay();
+	UE_LOG(LogTemp, Log, TEXT("BeginPlay called."));
 	
-	GetWorldTimerManager().SetTimer(ConnectionCheckTimer, this, &AGroundControlStation::CheckConnection, 0.01f, true);
+	GetWorldTimerManager().SetTimer(ConnectionCheckTimer, this, &AGroundControlStation::CheckConnection, 1.0f, true);
 	// Confirm connection with AirSim
 	/*AirSimClient->confirmConnection();
 	*/
-	
 }
 
 // Called every frame
@@ -57,35 +58,17 @@ void AGroundControlStation::CheckConnection()
 {
 	if (bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
 
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this]()
-		{
-			if (bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-			try
-			{
-				AirSimClient->enableApiControl(true);
-				if (!bIsConnected)
-				{
-					bIsConnected = true;
-					AsyncTask(ENamedThreads::GameThread, []()
-						{
-							UE_LOG(LogTemp, Log, TEXT("AirSim successfully connected!"));
-						});
-				}
-			}
-			catch (const std::exception&)
-			{
-				if (bIsConnected)
-				{
-					bIsConnected = false;
-					AsyncTask(ENamedThreads::GameThread, []()
-						{
-							UE_LOG(LogTemp, Warning, TEXT("Lost connection to AirSim! Retrying..."));
-						});
-
-					AirSimClient = std::make_unique<msr::airlib::MultirotorRpcLibClient>();
-				}
-			}
-		});
+	try {
+		AirSimClient->enableApiControl(true);
+		if (!bIsConnected) {
+			bIsConnected = true;
+			UE_LOG(LogTemp, Log, TEXT("Connected to AirSim!"));
+		}
+	}
+	catch (const std::exception& e) {
+		UE_LOG(LogTemp, Error, TEXT("Connection error: %s"), UTF8_TO_TCHAR(e.what()));
+		bIsConnected = false;
+	}
 }
 
 void AGroundControlStation::ArmDrone(FString UAVName)
@@ -96,25 +79,18 @@ void AGroundControlStation::ArmDrone(FString UAVName)
 		return;
 	}
 
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName]()
-		{
-			if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-
-			try 
-			{
-				WeakThis.Get()->AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				WeakThis.Get()->AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName));
-			}
-			catch (const std::exception& e)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Exception in ArmDrone: %s"), UTF8_TO_TCHAR(e.what()));
-				WeakThis.Get()->bIsConnected = false;
-			}
-			
-			UE_LOG(LogTemp, Log, TEXT("Drone Armed"));
-			//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Armed"));
-		});
+	try {
+		if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+			AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName));
+			UE_LOG(LogTemp, Log, TEXT("Drone Armed: %s"), *UAVName);
+		}
+		else {
+			UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+		}
+	}
+	catch (const std::exception& e) {
+		UE_LOG(LogTemp, Error, TEXT("Arm error: %s"), UTF8_TO_TCHAR(e.what()));
+	}
 }
 
 void AGroundControlStation::DisarmDrone(FString UAVName)
@@ -124,25 +100,19 @@ void AGroundControlStation::DisarmDrone(FString UAVName)
 		UE_LOG(LogTemp, Error, TEXT("Drone not connected!"));
 		return;
 	}
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName]()
-		{
-			if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
 
-			try
-			{
-				WeakThis.Get()->AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				WeakThis.Get()->AirSimClient->armDisarm(false, TCHAR_TO_UTF8(*UAVName));
-			}
-			catch (const std::exception& e)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Exception in ArmDrone: %s"), UTF8_TO_TCHAR(e.what()));
-				WeakThis.Get()->bIsConnected = false;
-			}
-
-			UE_LOG(LogTemp, Log, TEXT("Drone Disarmed"));
-			//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Disarmed"));
-		});
+	try {
+		if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+			AirSimClient->armDisarm(false, TCHAR_TO_UTF8(*UAVName));
+			UE_LOG(LogTemp, Log, TEXT("Drone Disarmed: %s"), *UAVName);
+		}
+		else {
+			UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+		}
+	}
+	catch (const std::exception& e) {
+		UE_LOG(LogTemp, Error, TEXT("Disarm error: %s"), UTF8_TO_TCHAR(e.what()));
+	}
 }
 
 void AGroundControlStation::Takeoff(FString UAVName)
@@ -153,56 +123,35 @@ void AGroundControlStation::Takeoff(FString UAVName)
 		return;
 	}
 
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName]()
+	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
 		{
-			if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
+			try {
+				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+					if (AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName))) {
+						UE_LOG(LogTemp, Log, TEXT("Drone Armed: %s"), *UAVName);
+						AirSimClient->takeoffAsync(10.0f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, 10.0f);
+						UE_LOG(LogTemp, Log, TEXT("Drone Taking Off: %s"), *UAVName);
 
-			AGroundControlStation* GroundControlStation = WeakThis.Get();
-			
-			// Execute takeoff async (Timeout after 5 seconds)
-			try
-			{
-				GroundControlStation->AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				if (GroundControlStation->AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName)))
-				{
-					UE_LOG(LogTemp, Log, TEXT("Drone Armed"));
-					/*AsyncTask(ENamedThreads::GameThread, []() {
-						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Armed"));
-						});*/
+						if (bTaskResult)
+						{
+							AllLandedStates.Add(UAVName, msr::airlib::LandedState::Flying);
+							UE_LOG(LogTemp, Log, TEXT("Drone Takeoff Successful: %s"), *UAVName);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Error, TEXT("Drone Takeoff Failed: %s"), *UAVName);
+						}
+					}
+					else {
+						UE_LOG(LogTemp, Error, TEXT("Drone not armed: %s"), *UAVName);
+					}
 				}
-				GroundControlStation->AirSimClient->takeoffAsync(10.0f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&GroundControlStation->bTaskResult, 10.0f);
-				UE_LOG(LogTemp, Log, TEXT("Drone Taking Off"));
+				else {
+					UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+				}
 			}
-			catch (const std::exception&)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Takeoff Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Takeoff Failed"));
-					});*/
-				return;
-			}
-			//GroundControlStation->AirSimClient->takeoffAsync(10.0f, TCHAR_TO_UTF8(*UAVName));
-			
-			/*AsyncTask(ENamedThreads::GameThread, []() {
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Taking Off"));
-				});*/
-
-			// Check takeoff result
-			if (GroundControlStation->bTaskResult)
-			{
-				GroundControlStation->AllLandedStates.Add(UAVName, msr::airlib::LandedState::Flying);
-				UE_LOG(LogTemp, Log, TEXT("Drone Takeoff Successful"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Takeoff Successful"));
-					});*/
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Takeoff Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Takeoff Failed"));
-					});*/
+			catch (const std::exception& e) {
+				UE_LOG(LogTemp, Error, TEXT("Takeoff error: %s"), UTF8_TO_TCHAR(e.what()));
 			}
 		});
 }
@@ -215,48 +164,29 @@ void AGroundControlStation::Land(FString UAVName)
 		return;
 	}
 
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName]()
+	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
 		{
-			if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-
-			AGroundControlStation* GroundControlStation = WeakThis.Get();
-			// Execute land async (Timeout after 5 seconds)
-			//GroundControlStation->AirSimClient->landAsync(10.0f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&GroundControlStation->bTaskResult, 5.0f);
-			try
-			{
-				GroundControlStation->AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				GroundControlStation->AirSimClient->landAsync(10.0f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&GroundControlStation->bTaskResult, 10.0f);
-				UE_LOG(LogTemp, Log, TEXT("Drone Landing"));
+			try {
+				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+					AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+					AirSimClient->landAsync(10.0f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, 10.0f);
+					UE_LOG(LogTemp, Log, TEXT("Drone Landing: %s"), *UAVName);
+					if (bTaskResult)
+					{
+						AllLandedStates.Add(UAVName, msr::airlib::LandedState::Landed);
+						UE_LOG(LogTemp, Log, TEXT("Drone Landing Successful: %s"), *UAVName);
+					}
+					else
+					{
+						UE_LOG(LogTemp, Error, TEXT("Drone Landing Failed: %s"), *UAVName);
+					}
+				}
+				else {
+					UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+				}
 			}
-			catch (const std::exception&)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Landing Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Takeoff Failed"));
-					});*/
-				return;
-			}
-
-			
-			/*AsyncTask(ENamedThreads::GameThread, []() {
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Landing"));
-				});*/
-			// Check land result
-			if (GroundControlStation->bTaskResult)
-			{
-				GroundControlStation->AllLandedStates.Add(UAVName, msr::airlib::LandedState::Landed);
-				UE_LOG(LogTemp, Log, TEXT("Drone Landing Successful"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Landing Successful"));
-					});*/
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Landing Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Landing Failed"));
-					});*/
+			catch (const std::exception& e) {
+				UE_LOG(LogTemp, Error, TEXT("Land error: %s"), UTF8_TO_TCHAR(e.what()));
 			}
 		});
 }
@@ -269,31 +199,30 @@ void AGroundControlStation::Hover(FString UAVName)
 		return;
 	}
 
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName]()
+	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
 		{
-			if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
+			try {
+				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+					AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+					AirSimClient->hoverAsync(TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, 5.0f);
+					UE_LOG(LogTemp, Log, TEXT("Drone Hovering: %s"), *UAVName);
 
-			AGroundControlStation* GroundControlStation = WeakThis.Get();
-
-			try
-			{
-				GroundControlStation->AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				GroundControlStation->AirSimClient->hoverAsync(TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&GroundControlStation->bTaskResult, 5.0f);
-				UE_LOG(LogTemp, Log, TEXT("Drone Hovering"));
+					if (bTaskResult)
+					{
+						UE_LOG(LogTemp, Log, TEXT("Drone Hovering Successful: %s"), *UAVName);
+					}
+					else
+					{
+						UE_LOG(LogTemp, Error, TEXT("Drone Hovering Failed: %s"), *UAVName);
+					}
+				}
+				else {
+					UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+				}
 			}
-			catch (const std::exception&)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Hovering Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Takeoff Failed"));
-					});*/
-				return;
+			catch (const std::exception& e) {
+				UE_LOG(LogTemp, Error, TEXT("Hover error: %s"), UTF8_TO_TCHAR(e.what()));
 			}
-
-			/*AsyncTask(ENamedThreads::GameThread, []() {
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Hovering"));
-				});*/
 		});
 }
 
@@ -305,27 +234,13 @@ int64 AGroundControlStation::GetLandedState(FString UAVName)
 		return -1;
 	}
 
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName]()
-		{
-			if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-
-			AGroundControlStation* GroundControlStation = WeakThis.Get();
-
-			try
-			{
-				GroundControlStation->AllLandedStates.Add(UAVName, GroundControlStation->AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName)).landed_state);
-			}
-			catch (const std::exception&)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Get Landed State Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Takeoff Failed"));
-					});*/
-				return;
-			}
-			
-		});
+	try {
+		AllLandedStates.Add(UAVName, AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName)).landed_state);
+	}
+	catch (const std::exception& e) {
+		UE_LOG(LogTemp, Error, TEXT("Get Landed State Failed: %s"), UTF8_TO_TCHAR(e.what()));
+		return -1;
+	}
 	return (int64)AllLandedStates[UAVName];
 }
 
@@ -337,53 +252,26 @@ void AGroundControlStation::MoveToLocation(FString UAVName, FVector Location, fl
 		return;
 	}
 
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName, Location, Velocity, Timeout]()
+	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Location, Velocity, Timeout]()
 		{
-			if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-
-			AGroundControlStation* GroundControlStation = WeakThis.Get();
-
-			float TargetZ = GroundControlStation->OffsetZ - Location.Z;
-			// Execute move to location async (Timeout after 5 seconds)
-			/*GroundControlStation->AirSimClient->moveToPositionAsync(Location.X, Location.Y, TargetZ, Velocity, Timeout,
-																	msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
-																	-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&GroundControlStation->bTaskResult, Timeout);*/
-
-			try
-			{
-				GroundControlStation->AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				GroundControlStation->AirSimClient->moveToPositionAsync(Location.X, Location.Y, TargetZ, Velocity, Timeout,
+			try {
+				float TargetZ = OffsetZ - Location.Z;
+				AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+				AirSimClient->moveToPositionAsync(Location.X, Location.Y, TargetZ, Velocity, Timeout,
 					msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
-					-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&GroundControlStation->bTaskResult, Timeout);
-				UE_LOG(LogTemp, Log, TEXT("Drone Moving to Location %f %f %f"), Location.X, Location.Y, Location.Z);
+					-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
+				UE_LOG(LogTemp, Log, TEXT("Drone Moving to Location %f %f %f: %s"), Location.X, Location.Y, Location.Z, *UAVName);
+				if (bTaskResult)
+				{
+					UE_LOG(LogTemp, Log, TEXT("Drone Move to Location Successful: %s"), *UAVName);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("Drone Move to Location Failed: %s"), *UAVName);
+				}
 			}
-			catch (const std::exception&)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Move to Location Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Takeoff Failed"));
-					});*/
-				return;
-			}
-			
-			/*AsyncTask(ENamedThreads::GameThread, []() {
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Moving to target location"));
-				});*/
-			// Check move to location result
-			if (GroundControlStation->bTaskResult)
-			{
-				UE_LOG(LogTemp, Log, TEXT("Drone Move to Location Successful"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Move to Location Successful"));
-					});*/
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Move to Location Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Move to Location Failed"));
-					});*/
+			catch (const std::exception& e) {
+				UE_LOG(LogTemp, Error, TEXT("Move to location error: %s"), UTF8_TO_TCHAR(e.what()));
 			}
 		});
 }
@@ -396,54 +284,29 @@ void AGroundControlStation::MoveByPath(FString UAVName, const TArray<FVector>& P
 		return;
 	}
 
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName, Path, Velocity, Timeout]()
+	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Path, Velocity, Timeout]()
 		{
-			if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-
-			AGroundControlStation* GroundControlStation = WeakThis.Get();
-			
-			std::vector<msr::airlib::Vector3r> Waypoints;
-			for (FVector Point : Path)
-			{
-				Waypoints.push_back(msr::airlib::Vector3r(Point.X, Point.Y, Point.Z));
+			try {
+				std::vector<msr::airlib::Vector3r> Waypoints;
+				for (FVector Point : Path)
+				{
+					Waypoints.push_back(msr::airlib::Vector3r(Point.X, Point.Y, Point.Z));
+				}
+				AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+				AirSimClient->moveOnPathAsync(Waypoints, Velocity, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
+					-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
+				UE_LOG(LogTemp, Log, TEXT("Drone Moving by Path: %s"), *UAVName);
+				if (bTaskResult)
+				{
+					UE_LOG(LogTemp, Log, TEXT("Drone Move by Path Successful: %s"), *UAVName);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("Drone Move by Path Failed: %s"), *UAVName);
+				}
 			}
-
-			try
-			{
-				GroundControlStation->AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				GroundControlStation->AirSimClient->moveOnPathAsync(Waypoints, Velocity, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
-					-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&GroundControlStation->bTaskResult, Timeout);
-
-				UE_LOG(LogTemp, Log, TEXT("Drone Moving by Path"));
-			}
-			catch (const std::exception&)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Move by Path Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Takeoff Failed"));
-					});*/
-				return;
-			}
-
-			
-			/*AsyncTask(ENamedThreads::GameThread, []() {
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Moving by Path"));
-				});*/
-			// Check move by path result
-			if (GroundControlStation->bTaskResult)
-			{
-				UE_LOG(LogTemp, Log, TEXT("Drone Move by Path Successful"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Move by Path Successful"));
-					});*/
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Move by Path Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Move by Path Failed"));
-					});*/
+			catch (const std::exception& e) {
+				UE_LOG(LogTemp, Error, TEXT("Move by path error: %s"), UTF8_TO_TCHAR(e.what()));
 			}
 		});
 }
@@ -456,53 +319,27 @@ void AGroundControlStation::MoveByVelocitySameZ(FString UAVName, FVector2D Veloc
 		return;
 	}
 
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName, VelocityXY, Z, Timeout]()
+	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, VelocityXY, Z, Timeout]()
 		{
-			if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-
-			AGroundControlStation* GroundControlStation = WeakThis.Get();
-
-			try
-			{
+			try {
 				// Go to target Z first
-				/*GroundControlStation->AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1,
-					TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&GroundControlStation->bTaskResult, Z*2);*/
-
-				GroundControlStation->AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+				//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
+				AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
 				// Move by velocity with same Z
-				GroundControlStation->AirSimClient->moveByVelocityZAsync(VelocityXY.X, VelocityXY.Y, -Z, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
-					TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&GroundControlStation->bTaskResult, Timeout*1.5);
-
-				UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z"));
+				AirSimClient->moveByVelocityZAsync(VelocityXY.X, VelocityXY.Y, -Z, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
+					TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout * 1.5);
+				UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z: %s"), *UAVName);
+				if (bTaskResult)
+				{
+					UE_LOG(LogTemp, Log, TEXT("Drone Move by Velocity with same Z Successful: %s"), *UAVName);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed: %s"), *UAVName);
+				}
 			}
-			catch (const std::exception&)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Takeoff Failed"));
-					});*/
-				return;
-			}
-
-
-			/*AsyncTask(ENamedThreads::GameThread, []() {
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Moving by Path"));
-				});*/
-				// Check move by path result
-			if (GroundControlStation->bTaskResult)
-			{
-				UE_LOG(LogTemp, Log, TEXT("Drone Move by Velocity with same Z Successful"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Drone Move by Path Successful"));
-					});*/
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed"));
-				/*AsyncTask(ENamedThreads::GameThread, []() {
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Drone Move by Path Failed"));
-					});*/
+			catch (const std::exception& e) {
+				UE_LOG(LogTemp, Error, TEXT("Move by velocity with same Z error: %s"), UTF8_TO_TCHAR(e.what()));
 			}
 		});
 }
@@ -522,64 +359,46 @@ void AGroundControlStation::GetTelemetryData()
 		// Get flow ID for network simulation
 		int32 FlowId = 1; // Placeholder
 
-		SimulateNetworkRequest(FlowId, [this, UAVName]()
-			{
-				TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-				AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName]()
+		try {
+			if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+				auto drone_state = AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName));
+				if (OffsetZ == -1212) OffsetZ = drone_state.getPosition().z();
+				float CurrentZ = OffsetZ - drone_state.getPosition().z();
+				float CurrenAltitude = OffsetZ - drone_state.gps_location.altitude;
+				FTelemetryData Telemetry;
+				Telemetry.Timestamp = drone_state.timestamp;
+				Telemetry.Name = UAVName;
+				Telemetry.Position = FVector(drone_state.getPosition().x(), drone_state.getPosition().y(), CurrentZ);
+				Telemetry.GPS = FVector(drone_state.gps_location.latitude, drone_state.gps_location.longitude, CurrenAltitude);
+				Telemetry.Velocity = FVector(drone_state.kinematics_estimated.twist.linear.x(), drone_state.kinematics_estimated.twist.linear.y(), drone_state.kinematics_estimated.twist.linear.z());
+				Telemetry.BatteryLevel = 100.0f;  // Placeholder
+				Telemetry.IsConnected = AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName));
+				// Push telemetry data to the main thread
+				AsyncTask(ENamedThreads::GameThread, [this, Telemetry]()
 					{
-						if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-						AGroundControlStation* GroundControlStation = WeakThis.Get();
-						try
+						// Check if telemetry data for this UAV already exists
+						for (FTelemetryData& ExistingTelemetry : ListTelemetryData)
 						{
-							if (GroundControlStation) {
-								// Get drone state from AirSim
-								auto drone_state = GroundControlStation->AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName));
-								if (GroundControlStation->OffsetZ == -1212) GroundControlStation->OffsetZ = drone_state.getPosition().z();
-								float CurrentZ = GroundControlStation->OffsetZ - drone_state.getPosition().z();
-								float CurrenAltitude = GroundControlStation->OffsetZ - drone_state.gps_location.altitude;
-
-								FTelemetryData Telemetry;
-								Telemetry.Timestamp = drone_state.timestamp;
-								Telemetry.Name = UAVName;
-								Telemetry.Position = FVector(drone_state.getPosition().x(), drone_state.getPosition().y(), CurrentZ);
-								Telemetry.GPS = FVector(drone_state.gps_location.latitude, drone_state.gps_location.longitude, CurrenAltitude);
-								Telemetry.Velocity = FVector(drone_state.kinematics_estimated.twist.linear.x(), drone_state.kinematics_estimated.twist.linear.y(), drone_state.kinematics_estimated.twist.linear.z());
-								Telemetry.BatteryLevel = 100.0f;  // Placeholder
-								Telemetry.IsConnected = GroundControlStation->AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName));
-
-								// Push telemetry data to the main thread
-								AsyncTask(ENamedThreads::GameThread, [WeakThis, Telemetry]()
-									{
-										if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested()) return;
-
-										AGroundControlStation* GroundControlStation = WeakThis.Get();
-										// Check if telemetry data for this UAV already exists
-										for (FTelemetryData& ExistingTelemetry : GroundControlStation->ListTelemetryData)
-										{
-											if (ExistingTelemetry.Name == Telemetry.Name)
-											{
-												// Update existing telemetry entry
-												ExistingTelemetry = Telemetry;
-												//UE_LOG(LogTemp, Log, TEXT("Telemetry updated for %s"), *Telemetry.Name);
-												return;
-											}
-										}
-
-										// If not found, add as a new entry
-										GroundControlStation->ListTelemetryData.Add(Telemetry);
-										//UE_LOG(LogTemp, Log, TEXT("Telemetry added for %s"), *Telemetry.Name);
-									});
+							if (ExistingTelemetry.Name == Telemetry.Name)
+							{
+								// Update existing telemetry entry
+								ExistingTelemetry = Telemetry;
+								//UE_LOG(LogTemp, Log, TEXT("Telemetry updated for %s"), *Telemetry.Name);
+								return;
 							}
 						}
-						catch (const std::exception& e)
-						{
-							UE_LOG(LogTemp, Error, TEXT("Exception in GetLastestVideoFrame: %s"), UTF8_TO_TCHAR(e.what()));
-							WeakThis.Get()->bIsConnected = false;
-						}
-						
-						
+						// If not found, add as a new entry
+						ListTelemetryData.Add(Telemetry);
+						//UE_LOG(LogTemp, Log, TEXT("Telemetry added for %s"), *Telemetry.Name);
 					});
-			});
+			}
+			else {
+				UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+			}
+		}
+		catch (const std::exception& e) {
+			UE_LOG(LogTemp, Error, TEXT("Get telemetry data error: %s"), UTF8_TO_TCHAR(e.what()));
+		}
 	}
 }
 
@@ -591,96 +410,46 @@ void AGroundControlStation::GetLastestVideoFrame(FString UAVName, bool IsCapture
 		return;
 	}
 
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, UAVName, IsCapture, FilePath]()
+	try {
+		std::vector<uint8_t> ImageData = AirSimClient->simGetImage("front_center", msr::airlib::ImageCaptureBase::ImageType::Scene, TCHAR_TO_UTF8(*UAVName));
+		if (ImageData.empty())
 		{
-			// Get flow ID for network simulation
-			int32 FlowId = 1; // Placeholder
-			
-			SimulateNetworkRequest(FlowId, [this, UAVName, IsCapture, FilePath]()
-				{
-					/*int TargetWidth = 1920;
-					int TargetHeight = 1080;*/
-					TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-
-					AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, UAVName, IsCapture, FilePath]() {
-						// Get latest video frame from AirSim
-						if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-						AGroundControlStation* GroundControlStation = WeakThis.Get();
-
-						if (!GroundControlStation->AirSimClient || !GroundControlStation->bIsConnected) {
-							return;
-						}
-
-						try
-						{
-							std::vector<uint8_t> ImageData = GroundControlStation->AirSimClient->simGetImage("front_center", msr::airlib::ImageCaptureBase::ImageType::Scene, TCHAR_TO_UTF8(*UAVName));
-
-							if (ImageData.empty())
-							{
-								UE_LOG(LogTemp, Warning, TEXT("Failed to retrieve video frame for %s"), *UAVName);
-								return;
-							}
-
-							cv::Mat DecodedImage = cv::imdecode(cv::Mat(ImageData), cv::IMREAD_COLOR);
-							if (DecodedImage.empty())
-							{
-								UE_LOG(LogTemp, Error, TEXT("Failed to decode image for %s"), *UAVName);
-								return;
-							}
-
-							if (IsCapture) {
-								// Define the save folder path
-								FString SaveFolder = FPaths::ProjectDir() + TEXT("Saved/Images/");
-
-								// Ensure the directory exists
-								if (!FPaths::DirectoryExists(SaveFolder)) {
-									IFileManager::Get().MakeDirectory(*SaveFolder, true);
-								}
-
-								// Construct the full save path with filename
-								FString SavePath = SaveFolder + UAVName + TEXT("_") + FDateTime::Now().ToString() + TEXT(".png");
-								std::string SavePathStr = TCHAR_TO_UTF8(*SavePath);
-
-								// Save the image using OpenCV
-								if (!cv::imwrite(SavePathStr, DecodedImage)) {
-									UE_LOG(LogTemp, Error, TEXT("Failed to save image to %s"), *SavePath);
-								}
-								else {
-									UE_LOG(LogTemp, Warning, TEXT("Image saved successfully at: %s"), *SavePath);
-								}
-							}
-
-
-							AsyncTask(ENamedThreads::GameThread, [WeakThis, UAVName, DecodedImage]()
-								{
-									if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested()) return;
-
-									AGroundControlStation* GroundControlStation = WeakThis.Get();
-									if (GroundControlStation) {
-										try
-										{
-											// Convert image to texture
-											UTexture2D* VideoFrame = GroundControlStation->ConvertImageToTexture(DecodedImage);
-											if (VideoFrame) {
-												GroundControlStation->HandleVideoFrame(UAVName, VideoFrame);
-											}
-										}
-										catch (const std::exception& e)
-										{
-											UE_LOG(LogTemp, Error, TEXT("Exception in GetLastestVideoFrame: %s"), UTF8_TO_TCHAR(e.what()));
-											if (WeakThis.IsValid()) WeakThis.Get()->bIsConnected = false;
-										}
-									}
-								});
-						}
-						catch (const std::exception& e)
-						{
-							UE_LOG(LogTemp, Error, TEXT("Exception in GetLastestVideoFrame: %s"), UTF8_TO_TCHAR(e.what()));
-							if (WeakThis.IsValid()) WeakThis.Get()->bIsConnected = false;
-						}
-					});
-				});
-		});
+			UE_LOG(LogTemp, Warning, TEXT("Failed to retrieve video frame for %s"), *UAVName);
+			return;
+		}
+		cv::Mat DecodedImage = cv::imdecode(cv::Mat(ImageData), cv::IMREAD_COLOR);
+		if (DecodedImage.empty())
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to decode image for %s"), *UAVName);
+			return;
+		}
+		if (IsCapture) {
+			// Define the save folder path
+			FString SaveFolder = FPaths::ProjectDir() + TEXT("Saved/Images/");
+			// Ensure the directory exists
+			if (!FPaths::DirectoryExists(SaveFolder)) {
+				IFileManager::Get().MakeDirectory(*SaveFolder, true);
+			}
+			// Construct the full save path with filename
+			FString SavePath = SaveFolder + UAVName + TEXT("_") + FDateTime::Now().ToString() + TEXT(".png");
+			std::string SavePathStr = TCHAR_TO_UTF8(*SavePath);
+			// Save the image using OpenCV
+			if (!cv::imwrite(SavePathStr, DecodedImage)) {
+				UE_LOG(LogTemp, Error, TEXT("Failed to save image to %s"), *SavePath);
+			}
+			else {
+				UE_LOG(LogTemp, Warning, TEXT("Image saved successfully at: %s"), *SavePath);
+			}
+		}
+		// Convert image to texture
+		UTexture2D* VideoFrame = ConvertImageToTexture(DecodedImage);
+		if (VideoFrame) {
+			HandleVideoFrame(UAVName, VideoFrame);
+		}
+	}
+	catch (const std::exception& e) {
+		UE_LOG(LogTemp, Error, TEXT("Get lastest video frame error: %s"), UTF8_TO_TCHAR(e.what()));
+	}
 }
 
 UTexture2D* AGroundControlStation::ConvertImageToTexture(const cv::Mat& Image)
@@ -723,16 +492,17 @@ UTexture2D* AGroundControlStation::ConvertImageToTexture(const cv::Mat& Image)
 	return Texture;
 }
 
+
 void AGroundControlStation::HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture)
 {
-	if (IsEngineExitRequested()) return;
-	if (!VideoTexture)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Failed to handle video frame for %s"), *UAVName);
-		return;
-	}
-	// Broadcast video frame received event
-	OnVideoFrameReceived.Broadcast(UAVName, VideoTexture);
+	//if (IsEngineExitRequested()) return;
+	//if (!VideoTexture)
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("Failed to handle video frame for %s"), *UAVName);
+	//	return;
+	//}
+	//// Broadcast video frame received event
+	//OnVideoFrameReceived.Broadcast(UAVName, VideoTexture);
 }
 
 
@@ -794,28 +564,6 @@ void AGroundControlStation::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (AirSimClient) {
 		UE_LOG(LogTemp, Log, TEXT("Stopping all UAV operations before shutdown..."));
 
-		//// Reset and disable API control to prevent stuck RPC calls
-		//try {
-		//	/*AirSimClient->reset();
-		//	AirSimClient->enableApiControl(false);
-		//	AirSimClient.release();*/
-		//	for (FString UAVName : ListUAVName)
-		//	{
-		//		AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-		//	}
-		//	AirSimClient->reset();
-		//}
-		//catch (const std::exception& e) {
-		//	UE_LOG(LogTemp, Error, TEXT("Exception during AirSim shutdown: %s"), *FString(e.what()));
-		//}
-		/*try
-		{
-			AirSimClient->reset();
-		}
-		catch (const std::exception& e)
-		{
-			UE_LOG(LogTemp, Error, TEXT("Exception during AirSim shutdown: %s"), *FString(e.what()));
-		}*/
 		AirSimClient = nullptr;
 	}
 
