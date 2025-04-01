@@ -3,7 +3,6 @@
 
 #include "GroundControlStation.h"
 #include "Engine/Engine.h"
-#include "NetworkStateInstance.h"
 #include "Async/Async.h"
 #include "Vehicles/Multirotor/FlyingPawn.h"
 #include "Kismet/GameplayStatics.h"
@@ -30,6 +29,12 @@ void AGroundControlStation::BeginPlay()
 {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Log, TEXT("BeginPlay called."));
+
+	NetworkStateInstance = Cast<UNetworkStateInstance>(GetGameInstance());
+	NetworkEffectManager = GetGameInstance()->GetSubsystem<UNetworkEffectManager>();
+
+	if (!NetworkEffectManager || !NetworkStateInstance)
+		UE_LOG(LogTemp, Error, TEXT("No Network Component Found!"));
 	
 	GetWorldTimerManager().SetTimer(ConnectionCheckTimer, this, &AGroundControlStation::CheckConnection, 1.0f, true);
 	// Confirm connection with AirSim
@@ -79,18 +84,27 @@ void AGroundControlStation::ArmDrone(FString UAVName)
 		return;
 	}
 
-	try {
-		if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
-			AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName));
-			UE_LOG(LogTemp, Log, TEXT("Drone Armed: %s"), *UAVName);
-		}
-		else {
-			UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
-		}
-	}
-	catch (const std::exception& e) {
-		UE_LOG(LogTemp, Error, TEXT("Arm error: %s"), UTF8_TO_TCHAR(e.what()));
-	}
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
+	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+	NetworkEffectManager->SetNetworkParameters(Delay);
+	bool bCanExecute = false;
+
+	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
+		if (bFinalCheck) {
+			try {
+				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+					AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName));
+					UE_LOG(LogTemp, Log, TEXT("Drone Armed: %s"), *UAVName);
+				}
+				else {
+					UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+				}
+			}
+			catch (const std::exception& e) {
+				UE_LOG(LogTemp, Error, TEXT("Arm error: %s"), UTF8_TO_TCHAR(e.what()));
+			}
+			}
+		}));
 }
 
 void AGroundControlStation::DisarmDrone(FString UAVName)
@@ -101,18 +115,27 @@ void AGroundControlStation::DisarmDrone(FString UAVName)
 		return;
 	}
 
-	try {
-		if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
-			AirSimClient->armDisarm(false, TCHAR_TO_UTF8(*UAVName));
-			UE_LOG(LogTemp, Log, TEXT("Drone Disarmed: %s"), *UAVName);
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
+	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+	NetworkEffectManager->SetNetworkParameters(Delay);
+	bool bCanExecute = false;
+
+	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
+		if (bFinalCheck) {
+			try {
+				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+					AirSimClient->armDisarm(false, TCHAR_TO_UTF8(*UAVName));
+					UE_LOG(LogTemp, Log, TEXT("Drone Disarmed: %s"), *UAVName);
+				}
+				else {
+					UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+				}
+			}
+			catch (const std::exception& e) {
+				UE_LOG(LogTemp, Error, TEXT("Disarm error: %s"), UTF8_TO_TCHAR(e.what()));
+			}
 		}
-		else {
-			UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
-		}
-	}
-	catch (const std::exception& e) {
-		UE_LOG(LogTemp, Error, TEXT("Disarm error: %s"), UTF8_TO_TCHAR(e.what()));
-	}
+		}));
 }
 
 void AGroundControlStation::Takeoff(FString UAVName)
@@ -123,37 +146,46 @@ void AGroundControlStation::Takeoff(FString UAVName)
 		return;
 	}
 
-	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
-		{
-			try {
-				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
-					if (AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName))) {
-						UE_LOG(LogTemp, Log, TEXT("Drone Armed: %s"), *UAVName);
-						AirSimClient->takeoffAsync(10.0f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, 10.0f);
-						UE_LOG(LogTemp, Log, TEXT("Drone Taking Off: %s"), *UAVName);
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
+	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+	NetworkEffectManager->SetNetworkParameters(Delay);
+	bool bCanExecute = false;
 
-						if (bTaskResult)
-						{
-							AllLandedStates.Add(UAVName, msr::airlib::LandedState::Flying);
-							UE_LOG(LogTemp, Log, TEXT("Drone Takeoff Successful: %s"), *UAVName);
+	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
+		if (bFinalCheck) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
+				{
+					try {
+						if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+							if (AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName))) {
+								UE_LOG(LogTemp, Log, TEXT("Drone Armed: %s"), *UAVName);
+								AirSimClient->takeoffAsync(10.0f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, 10.0f);
+								UE_LOG(LogTemp, Log, TEXT("Drone Taking Off: %s"), *UAVName);
+
+								if (bTaskResult)
+								{
+									AllLandedStates.Add(UAVName, msr::airlib::LandedState::Flying);
+									UE_LOG(LogTemp, Log, TEXT("Drone Takeoff Successful: %s"), *UAVName);
+								}
+								else
+								{
+									UE_LOG(LogTemp, Error, TEXT("Drone Takeoff Failed: %s"), *UAVName);
+								}
+							}
+							else {
+								UE_LOG(LogTemp, Error, TEXT("Drone not armed: %s"), *UAVName);
+							}
 						}
-						else
-						{
-							UE_LOG(LogTemp, Error, TEXT("Drone Takeoff Failed: %s"), *UAVName);
+						else {
+							UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
 						}
 					}
-					else {
-						UE_LOG(LogTemp, Error, TEXT("Drone not armed: %s"), *UAVName);
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Takeoff error: %s"), UTF8_TO_TCHAR(e.what()));
 					}
-				}
-				else {
-					UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
-				}
-			}
-			catch (const std::exception& e) {
-				UE_LOG(LogTemp, Error, TEXT("Takeoff error: %s"), UTF8_TO_TCHAR(e.what()));
-			}
-		});
+				});
+		}
+		}));
 }
 
 void AGroundControlStation::Land(FString UAVName)
@@ -164,31 +196,40 @@ void AGroundControlStation::Land(FString UAVName)
 		return;
 	}
 
-	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
-		{
-			try {
-				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
-					AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-					AirSimClient->landAsync(10.0f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, 10.0f);
-					UE_LOG(LogTemp, Log, TEXT("Drone Landing: %s"), *UAVName);
-					if (bTaskResult)
-					{
-						AllLandedStates.Add(UAVName, msr::airlib::LandedState::Landed);
-						UE_LOG(LogTemp, Log, TEXT("Drone Landing Successful: %s"), *UAVName);
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
+	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+	NetworkEffectManager->SetNetworkParameters(Delay);
+	bool bCanExecute = false;
+
+	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
+		if (bFinalCheck) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
+				{
+					try {
+						if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+							AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+							AirSimClient->landAsync(10.0f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, 10.0f);
+							UE_LOG(LogTemp, Log, TEXT("Drone Landing: %s"), *UAVName);
+							if (bTaskResult)
+							{
+								AllLandedStates.Add(UAVName, msr::airlib::LandedState::Landed);
+								UE_LOG(LogTemp, Log, TEXT("Drone Landing Successful: %s"), *UAVName);
+							}
+							else
+							{
+								UE_LOG(LogTemp, Error, TEXT("Drone Landing Failed: %s"), *UAVName);
+							}
+						}
+						else {
+							UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+						}
 					}
-					else
-					{
-						UE_LOG(LogTemp, Error, TEXT("Drone Landing Failed: %s"), *UAVName);
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Land error: %s"), UTF8_TO_TCHAR(e.what()));
 					}
-				}
-				else {
-					UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
-				}
-			}
-			catch (const std::exception& e) {
-				UE_LOG(LogTemp, Error, TEXT("Land error: %s"), UTF8_TO_TCHAR(e.what()));
-			}
-		});
+				});
+		}
+		}));
 }
 
 void AGroundControlStation::Hover(FString UAVName)
@@ -199,31 +240,40 @@ void AGroundControlStation::Hover(FString UAVName)
 		return;
 	}
 
-	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
-		{
-			try {
-				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
-					AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-					AirSimClient->hoverAsync(TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, 5.0f);
-					UE_LOG(LogTemp, Log, TEXT("Drone Hovering: %s"), *UAVName);
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
+	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+	NetworkEffectManager->SetNetworkParameters(Delay);
+	bool bCanExecute = false;
 
-					if (bTaskResult)
-					{
-						UE_LOG(LogTemp, Log, TEXT("Drone Hovering Successful: %s"), *UAVName);
+	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
+		if (bFinalCheck) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
+				{
+					try {
+						if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+							AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+							AirSimClient->hoverAsync(TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, 5.0f);
+							UE_LOG(LogTemp, Log, TEXT("Drone Hovering: %s"), *UAVName);
+
+							if (bTaskResult)
+							{
+								UE_LOG(LogTemp, Log, TEXT("Drone Hovering Successful: %s"), *UAVName);
+							}
+							else
+							{
+								UE_LOG(LogTemp, Error, TEXT("Drone Hovering Failed: %s"), *UAVName);
+							}
+						}
+						else {
+							UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+						}
 					}
-					else
-					{
-						UE_LOG(LogTemp, Error, TEXT("Drone Hovering Failed: %s"), *UAVName);
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Hover error: %s"), UTF8_TO_TCHAR(e.what()));
 					}
-				}
-				else {
-					UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
-				}
-			}
-			catch (const std::exception& e) {
-				UE_LOG(LogTemp, Error, TEXT("Hover error: %s"), UTF8_TO_TCHAR(e.what()));
-			}
-		});
+				});
+		}
+		}));
 }
 
 int64 AGroundControlStation::GetLandedState(FString UAVName)
@@ -234,14 +284,28 @@ int64 AGroundControlStation::GetLandedState(FString UAVName)
 		return -1;
 	}
 
-	try {
-		AllLandedStates.Add(UAVName, AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName)).landed_state);
-	}
-	catch (const std::exception& e) {
-		UE_LOG(LogTemp, Error, TEXT("Get Landed State Failed: %s"), UTF8_TO_TCHAR(e.what()));
-		return -1;
-	}
-	return (int64)AllLandedStates[UAVName];
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
+	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+	NetworkEffectManager->SetNetworkParameters(Delay);
+	bool bCanExecute = false;
+
+	int64 state = -1;
+
+	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName, &state](const bool& bFinalCheck) {
+		if (bFinalCheck) {
+			try {
+				AllLandedStates.Add(UAVName, AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName)).landed_state);
+				state = (int64)AllLandedStates[UAVName];
+			}
+			catch (const std::exception& e) {
+				UE_LOG(LogTemp, Error, TEXT("Get Landed State Failed: %s"), UTF8_TO_TCHAR(e.what()));
+				state = -1;
+			}
+		}
+		else state = -1;
+		}));
+
+	return state;
 }
 
 void AGroundControlStation::MoveToLocation(FString UAVName, FVector Location, float Velocity, float Timeout) 
@@ -252,28 +316,37 @@ void AGroundControlStation::MoveToLocation(FString UAVName, FVector Location, fl
 		return;
 	}
 
-	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Location, Velocity, Timeout]()
-		{
-			try {
-				float TargetZ = OffsetZ - Location.Z;
-				AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				AirSimClient->moveToPositionAsync(Location.X, Location.Y, TargetZ, Velocity, Timeout,
-					msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
-					-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
-				UE_LOG(LogTemp, Log, TEXT("Drone Moving to Location %f %f %f: %s"), Location.X, Location.Y, Location.Z, *UAVName);
-				if (bTaskResult)
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
+	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+	NetworkEffectManager->SetNetworkParameters(Delay);
+	bool bCanExecute = false;
+
+	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName, Location, Velocity, Timeout](const bool& bFinalCheck) {
+		if (bFinalCheck) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Location, Velocity, Timeout]()
 				{
-					UE_LOG(LogTemp, Log, TEXT("Drone Move to Location Successful: %s"), *UAVName);
-				}
-				else
-				{
-					UE_LOG(LogTemp, Error, TEXT("Drone Move to Location Failed: %s"), *UAVName);
-				}
-			}
-			catch (const std::exception& e) {
-				UE_LOG(LogTemp, Error, TEXT("Move to location error: %s"), UTF8_TO_TCHAR(e.what()));
-			}
-		});
+					try {
+						float TargetZ = OffsetZ - Location.Z;
+						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+						AirSimClient->moveToPositionAsync(Location.X, Location.Y, TargetZ, Velocity, Timeout,
+							msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
+							-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
+						UE_LOG(LogTemp, Log, TEXT("Drone Moving to Location %f %f %f: %s"), Location.X, Location.Y, Location.Z, *UAVName);
+						if (bTaskResult)
+						{
+							UE_LOG(LogTemp, Log, TEXT("Drone Move to Location Successful: %s"), *UAVName);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Error, TEXT("Drone Move to Location Failed: %s"), *UAVName);
+						}
+					}
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Move to location error: %s"), UTF8_TO_TCHAR(e.what()));
+					}
+				});
+		}
+		}));
 }
 
 void AGroundControlStation::MoveByPath(FString UAVName, const TArray<FVector>& Path, float Velocity, float Timeout)
@@ -284,31 +357,40 @@ void AGroundControlStation::MoveByPath(FString UAVName, const TArray<FVector>& P
 		return;
 	}
 
-	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Path, Velocity, Timeout]()
-		{
-			try {
-				std::vector<msr::airlib::Vector3r> Waypoints;
-				for (FVector Point : Path)
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
+	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+	NetworkEffectManager->SetNetworkParameters(Delay);
+	bool bCanExecute = false;
+
+	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName, Path, Velocity, Timeout](const bool& bFinalCheck) {
+		if (bFinalCheck) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Path, Velocity, Timeout]()
 				{
-					Waypoints.push_back(msr::airlib::Vector3r(Point.X, Point.Y, Point.Z));
-				}
-				AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				AirSimClient->moveOnPathAsync(Waypoints, Velocity, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
-					-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
-				UE_LOG(LogTemp, Log, TEXT("Drone Moving by Path: %s"), *UAVName);
-				if (bTaskResult)
-				{
-					UE_LOG(LogTemp, Log, TEXT("Drone Move by Path Successful: %s"), *UAVName);
-				}
-				else
-				{
-					UE_LOG(LogTemp, Error, TEXT("Drone Move by Path Failed: %s"), *UAVName);
-				}
-			}
-			catch (const std::exception& e) {
-				UE_LOG(LogTemp, Error, TEXT("Move by path error: %s"), UTF8_TO_TCHAR(e.what()));
-			}
-		});
+					try {
+						std::vector<msr::airlib::Vector3r> Waypoints;
+						for (FVector Point : Path)
+						{
+							Waypoints.push_back(msr::airlib::Vector3r(Point.X, Point.Y, Point.Z));
+						}
+						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+						AirSimClient->moveOnPathAsync(Waypoints, Velocity, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
+							-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
+						UE_LOG(LogTemp, Log, TEXT("Drone Moving by Path: %s"), *UAVName);
+						if (bTaskResult)
+						{
+							UE_LOG(LogTemp, Log, TEXT("Drone Move by Path Successful: %s"), *UAVName);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Error, TEXT("Drone Move by Path Failed: %s"), *UAVName);
+						}
+					}
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Move by path error: %s"), UTF8_TO_TCHAR(e.what()));
+					}
+				});
+		}
+		}));
 }
 
 void AGroundControlStation::MoveByVelocitySameZ(FString UAVName, FVector2D VelocityXY, float Z, float Timeout)
@@ -319,34 +401,43 @@ void AGroundControlStation::MoveByVelocitySameZ(FString UAVName, FVector2D Veloc
 		return;
 	}
 
-	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, VelocityXY, Z, Timeout]()
-		{
-			try {
-				// Go to target Z first
-				//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
-				AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-				// Move by velocity with same Z
-				AirSimClient->moveByVelocityZAsync(VelocityXY.X, VelocityXY.Y, -Z, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
-					TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout * 1.5);
-				UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z: %s"), *UAVName);
-				if (bTaskResult)
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
+	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+	NetworkEffectManager->SetNetworkParameters(Delay);
+	bool bCanExecute = false;
+
+	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName, VelocityXY, Z, Timeout](const bool& bFinalCheck) {
+		if (bFinalCheck) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, VelocityXY, Z, Timeout]()
 				{
-					UE_LOG(LogTemp, Log, TEXT("Drone Move by Velocity with same Z Successful: %s"), *UAVName);
-				}
-				else
-				{
-					UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed: %s"), *UAVName);
-				}
-			}
-			catch (const std::exception& e) {
-				UE_LOG(LogTemp, Error, TEXT("Move by velocity with same Z error: %s"), UTF8_TO_TCHAR(e.what()));
-			}
-		});
+					try {
+						// Go to target Z first
+						//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
+						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+						// Move by velocity with same Z
+						AirSimClient->moveByVelocityZAsync(VelocityXY.X, VelocityXY.Y, -Z, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
+							TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout * 1.5);
+						UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z: %s"), *UAVName);
+						if (bTaskResult)
+						{
+							UE_LOG(LogTemp, Log, TEXT("Drone Move by Velocity with same Z Successful: %s"), *UAVName);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed: %s"), *UAVName);
+						}
+					}
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Move by velocity with same Z error: %s"), UTF8_TO_TCHAR(e.what()));
+					}
+				});
+		}
+		}));
 }
 
 // ==================================== DATA COLLECTOR FUNCTIONS ====================================
 
-void AGroundControlStation::GetTelemetryData()
+void AGroundControlStation::GetAllTelemetryData()
 {
 	if (bShuttingDown || IsEngineExitRequested() || !bIsConnected || IsGarbageCollecting())
 	{
@@ -358,6 +449,17 @@ void AGroundControlStation::GetTelemetryData()
 	{
 		// Get flow ID for network simulation
 		int32 FlowId = 1; // Placeholder
+		//if (NetworkStateInstance && NetworkStateInstance->GetFlowData().Contains(FlowId))
+		//{
+		//	const FFlowData& FlowData = NetworkStateInstance->GetFlowData()[FlowId];
+
+		//	float Delay = FlowData.MeanDelay / 1000000; // microseconds -> seconds
+		//	NetworkEffectManager->SetNetworkParameters(Delay);
+		//}
+		//else {
+		//	float Delay = 0.001; // Default to 1 ms
+		//	NetworkEffectManager->SetNetworkParameters(Delay);
+		//}
 
 		try {
 			if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
@@ -373,24 +475,31 @@ void AGroundControlStation::GetTelemetryData()
 				Telemetry.Velocity = FVector(drone_state.kinematics_estimated.twist.linear.x(), drone_state.kinematics_estimated.twist.linear.y(), drone_state.kinematics_estimated.twist.linear.z());
 				Telemetry.BatteryLevel = 100.0f;  // Placeholder
 				Telemetry.IsConnected = AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName));
-				// Push telemetry data to the main thread
-				AsyncTask(ENamedThreads::GameThread, [this, Telemetry]()
-					{
-						// Check if telemetry data for this UAV already exists
-						for (FTelemetryData& ExistingTelemetry : ListTelemetryData)
+
+				float Delay = 0.001; // Default to 1 ms
+				NetworkEffectManager->SetNetworkParameters(Delay);
+
+				NetworkEffectManager->QueueTelemetryUpdate(Telemetry, FDelayedTelemetryCallback::CreateLambda([this](const FTelemetryData& DelayedTelemetry) {
+					// Push telemetry data to the main thread
+					AsyncTask(ENamedThreads::GameThread, [this, DelayedTelemetry]()
 						{
-							if (ExistingTelemetry.Name == Telemetry.Name)
+							// Check if telemetry data for this UAV already exists
+							for (FTelemetryData& ExistingTelemetry : ListTelemetryData)
 							{
-								// Update existing telemetry entry
-								ExistingTelemetry = Telemetry;
-								//UE_LOG(LogTemp, Log, TEXT("Telemetry updated for %s"), *Telemetry.Name);
-								return;
+								if (ExistingTelemetry.Name == DelayedTelemetry.Name)
+								{
+									// Update existing telemetry entry
+									ExistingTelemetry = DelayedTelemetry;
+									//UE_LOG(LogTemp, Log, TEXT("Telemetry updated for %s"), *Telemetry.Name);
+									return;
+								}
 							}
-						}
-						// If not found, add as a new entry
-						ListTelemetryData.Add(Telemetry);
-						//UE_LOG(LogTemp, Log, TEXT("Telemetry added for %s"), *Telemetry.Name);
-					});
+							// If not found, add as a new entry
+							ListTelemetryData.Add(DelayedTelemetry);
+							//UE_LOG(LogTemp, Log, TEXT("Telemetry added for %s"), *Telemetry.Name);
+						});
+					}));
+				
 			}
 			else {
 				UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
@@ -399,6 +508,64 @@ void AGroundControlStation::GetTelemetryData()
 		catch (const std::exception& e) {
 			UE_LOG(LogTemp, Error, TEXT("Get telemetry data error: %s"), UTF8_TO_TCHAR(e.what()));
 		}
+	}
+}
+
+void AGroundControlStation::GetTelemetryDataByName(FString UAVName, int32 FlowId)
+{
+	if (bShuttingDown || IsEngineExitRequested() || !bIsConnected || IsGarbageCollecting())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Drone not connected!"));
+		return;
+	}
+
+	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(FlowId);
+
+	try {
+		if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+			auto drone_state = AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName));
+			if (OffsetZ == -1212) OffsetZ = drone_state.getPosition().z();
+			float CurrentZ = OffsetZ - drone_state.getPosition().z();
+			float CurrenAltitude = OffsetZ - drone_state.gps_location.altitude;
+			FTelemetryData Telemetry;
+			Telemetry.Timestamp = drone_state.timestamp;
+			Telemetry.Name = UAVName;
+			Telemetry.Position = FVector(drone_state.getPosition().x(), drone_state.getPosition().y(), CurrentZ);
+			Telemetry.GPS = FVector(drone_state.gps_location.latitude, drone_state.gps_location.longitude, CurrenAltitude);
+			Telemetry.Velocity = FVector(drone_state.kinematics_estimated.twist.linear.x(), drone_state.kinematics_estimated.twist.linear.y(), drone_state.kinematics_estimated.twist.linear.z());
+			Telemetry.BatteryLevel = 100.0f;  // Placeholder
+			Telemetry.IsConnected = AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName));
+
+			float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
+			NetworkEffectManager->SetNetworkParameters(Delay);
+
+			NetworkEffectManager->QueueTelemetryUpdate(Telemetry, FDelayedTelemetryCallback::CreateLambda([this](const FTelemetryData& DelayedTelemetry) {
+				// Push telemetry data to the main thread
+				AsyncTask(ENamedThreads::GameThread, [this, DelayedTelemetry]()
+					{
+						// Check if telemetry data for this UAV already exists
+						for (FTelemetryData& ExistingTelemetry : ListTelemetryData)
+						{
+							if (ExistingTelemetry.Name == DelayedTelemetry.Name)
+							{
+								// Update existing telemetry entry
+								ExistingTelemetry = DelayedTelemetry;
+								//UE_LOG(LogTemp, Log, TEXT("Telemetry updated for %s"), *Telemetry.Name);
+								return;
+							}
+						}
+						// If not found, add as a new entry
+						ListTelemetryData.Add(DelayedTelemetry);
+						//UE_LOG(LogTemp, Log, TEXT("Telemetry added for %s"), *Telemetry.Name);
+					});
+				}));
+
+		}
+		else {
+			UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+		}
+	} catch (const std::exception& e) {
+		UE_LOG(LogTemp, Error, TEXT("Get telemetry data error: %s"), UTF8_TO_TCHAR(e.what()));
 	}
 }
 
@@ -511,8 +678,7 @@ void AGroundControlStation::HandleVideoFrame(const FString& UAVName, UTexture2D*
 void AGroundControlStation::SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction)
 {
 	// Get network data from the network state instance
-	UNetworkStateInstance* NetworkStateInstance = Cast<UNetworkStateInstance>(GetGameInstance());
-	if (!NetworkStateInstance || !NetworkStateInstance->GetFlowData().Contains(FlowId))
+	if (!NetworkStateInstance || !NetworkStateInstance->GetFlowDataMap().Contains(FlowId))
 	{
 		//UE_LOG(LogTemp, Error, TEXT("Network state instance not found or flow data not available!"));
 		TWeakObjectPtr<AGroundControlStation> WeakThis = this;
@@ -524,7 +690,7 @@ void AGroundControlStation::SimulateNetworkRequest(int32 FlowId, TFunction<void(
 		return;
 	}
 
-	const FFlowData& FlowData = NetworkStateInstance->GetFlowData()[FlowId];
+	const FFlowData& FlowData = NetworkStateInstance->GetFlowDataMap()[FlowId];
 
 	float Delay = FlowData.MeanDelay; // microseconds
 	float Jitter = FlowData.MeanJitter; // microseconds

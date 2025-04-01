@@ -65,7 +65,7 @@ void AZmqSubscriber::StartListening()
                 // Split the topic and data
                 if (ReceivedFString.Split(TEXT(" "), &Topic, &Message))
                 {
-                    UE_LOG(LogTemp, Log, TEXT("Received Topic: %s, Message: %s"), *Topic, *Message);
+                    //UE_LOG(LogTemp, Log, TEXT("Received Topic: %s, Message: %s"), *Topic, *Message);
 
                     // Broadcast the message for others to handle
                     AsyncTask(ENamedThreads::GameThread, [this, Topic, Message]() {
@@ -94,7 +94,7 @@ void AZmqSubscriber::StartZmqSubscribe()
         FScopeLock Lock(&ZmqMutex);
         Socket.connect(TCHAR_TO_UTF8(*ConnectionAddress));
         Socket.setsockopt(ZMQ_SUBSCRIBE, TCHAR_TO_UTF8(*DefaultTopic), 0);
-        UE_LOG(LogTemp, Error, TEXT("ZMQ subscriber connect good"));
+        UE_LOG(LogTemp, Warning, TEXT("ZMQ subscriber connect good"));
     }
     catch (const zmq::error_t& e) {
         UE_LOG(LogTemp, Error, TEXT("ZMQ subscriber connect failed: %s"), UTF8_TO_TCHAR(e.what()));

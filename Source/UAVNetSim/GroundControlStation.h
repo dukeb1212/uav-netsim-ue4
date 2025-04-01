@@ -6,6 +6,8 @@
 #include "vehicles/multirotor/api/MultirotorRpcLibClient.hpp"
 #include "PIPCamera.h"
 #include "common/common_utils/UniqueValueMap.hpp"
+#include "NetworkStateInstance.h"
+#include "Network/NetworkEffectManager.h"
 #include "Delegates/Delegate.h"
 #include "DataStruct/Telemetry.h"
 
@@ -83,7 +85,10 @@ public:
 	int64 GetLandedState(FString UAVName);
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
-	void GetTelemetryData();
+	void GetAllTelemetryData();
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void GetTelemetryDataByName(FString UAVName, int32 FlowId);
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void GetLastestVideoFrame(FString UAVName, bool IsCapture = false, FString FilePath = "");
@@ -108,6 +113,10 @@ private:
 	float OffsetZ;
 
 	bool bShuttingDown = false;
+
+	UNetworkEffectManager* NetworkEffectManager;
+
+	UNetworkStateInstance* NetworkStateInstance;
 
 	void SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction);
 

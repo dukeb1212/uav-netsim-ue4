@@ -8,36 +8,6 @@
 #include "DataStruct/Flow.h"
 #include "NetworkStateInstance.generated.h"
 
-/**
- * 
- */
-
-//USTRUCT(BlueprintType)
-//struct FFlowData
-//{
-//    GENERATED_BODY()
-//
-//    UPROPERTY(BlueprintReadOnly)
-//    float MeanDelay;
-//
-//    UPROPERTY(BlueprintReadOnly)
-//    float MeanJitter;
-//
-//    UPROPERTY(BlueprintReadOnly)
-//    float PacketLossL3;
-//
-//    UPROPERTY(BlueprintReadOnly)
-//    int32 RxBytes;
-//
-//    UPROPERTY(BlueprintReadOnly)
-//    int32 RxPackets;
-//
-//    UPROPERTY(BlueprintReadOnly)
-//    int32 TxBytes;
-//
-//    UPROPERTY(BlueprintReadOnly)
-//    int32 TxPackets;
-//};
 
 UCLASS()
 class UAVNETSIM_API UNetworkStateInstance : public UGameInstance
@@ -53,7 +23,10 @@ public:
     UFUNCTION()
     void HandleMessage(const FString& Topic, const FString& Message);
 
-    const TMap<int32, FFlowData>& GetFlowData() const { return FlowDataMap; }
+    const TMap<int32, FFlowData>& GetFlowDataMap() const { return FlowDataMap; }
+
+    FFlowData* GetFlowDataById(int32 FlowId);
+    void InsertOrAssign(int32 FlowId, FFlowData FlowData);
 
 private:
     TMap<int32, FFlowData> FlowDataMap;

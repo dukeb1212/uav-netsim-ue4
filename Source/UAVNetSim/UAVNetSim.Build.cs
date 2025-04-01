@@ -51,6 +51,7 @@ public class UAVNetSim : ModuleRules
 
         // Uncomment if you are using Slate UI
         PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "Slate", "SlateCore" });
+        CircularlyReferencedDependentModules.AddRange(new string[] { "AirSim" });
 
         // Uncomment if you are using online features
         // PrivateDependencyModuleNames.Add("OnlineSubsystem");

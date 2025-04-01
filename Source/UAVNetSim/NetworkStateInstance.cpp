@@ -6,6 +6,7 @@
 #include "Json.h"
 #include "JsonUtilities.h"
 #include "Engine/Engine.h"
+#include "DataStruct/Flow.h"
 
 
 void UNetworkStateInstance::Init()
@@ -14,6 +15,7 @@ void UNetworkStateInstance::Init()
 
     // Bind the network to a ZMQ subscriber for data update
     FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UNetworkStateInstance::BindToZmqSubscriber);
+    InsertOrAssign(1, Flow::Create());
 }
 
 void UNetworkStateInstance::BindToZmqSubscriber(const UWorld::FActorsInitializedParams& Params)
@@ -42,9 +44,19 @@ void UNetworkStateInstance::HandleMessage(const FString& Topic, const FString& M
 {
     if (Topic == TEXT("network"))
     {
-        UE_LOG(LogTemp, Log, TEXT("Processing network data..."));
+        //UE_LOG(LogTemp, Log, TEXT("Processing network data..."));
         ParseAndStoreNetworkData(Message);
     }
+}
+
+FFlowData* UNetworkStateInstance::GetFlowDataById(int32 FlowId)
+{
+    return FlowDataMap.Find(FlowId);
+}
+
+void UNetworkStateInstance::InsertOrAssign(int32 FlowId, FFlowData FlowData)
+{
+    FlowDataMap.FindOrAdd(FlowId) = FlowData;
 }
 
 void UNetworkStateInstance::ParseAndStoreNetworkData(const FString& JsonMessage)
@@ -82,6 +94,8 @@ void UNetworkStateInstance::ParseAndStoreNetworkData(const FString& JsonMessage)
             if (FlowDataJson.IsValid())
             {
                 FFlowData FlowData;
+                FlowData.SourceIPAddress = FlowDataJson->GetStringField("src");
+                FlowData.DestinationIPAddress = FlowDataJson->GetStringField("dst");
                 FlowData.MeanDelay = FlowDataJson->GetNumberField("meanDelay");
                 FlowData.MeanJitter = FlowDataJson->GetNumberField("meanJitter");
                 FlowData.PacketLossL3 = FlowDataJson->GetNumberField("packetLossL3");
@@ -107,8 +121,8 @@ void UNetworkStateInstance::ParseAndStoreNetworkData(const FString& JsonMessage)
         for (const auto& Pair : FlowDataMap)
         {
             const FFlowData& Data = Pair.Value;
-            FString OutputMessage = FString::Printf(TEXT("Flow ID: %d\nMeanDelay: %.2f ms\nMeanJitter: %.2f ms\nPacketLoss: %.2f%%\nRxBytes: %d\nRxPackets: %d\nTxBytes: %d\nTxPackets: %d"),
-                Pair.Key, Data.MeanDelay, Data.MeanJitter, Data.PacketLossL3, Data.RxBytes, Data.RxPackets, Data.TxBytes, Data.TxPackets);
+            FString OutputMessage = FString::Printf(TEXT("Flow ID: %d\nSourceIP: %s\nDestIP: %s\nMeanDelay: %.2f us\nMeanJitter: %.2f us\nPacketLoss: %.2f%%\nRxBytes: %d\nRxPackets: %d\nTxBytes: %d\nTxPackets: %d"),
+                Pair.Key, *Data.SourceIPAddress, *Data.DestinationIPAddress, Data.MeanDelay, Data.MeanJitter, Data.PacketLossL3, Data.RxBytes, Data.RxPackets, Data.TxBytes, Data.TxPackets);
 
             UE_LOG(LogTemp, Log, TEXT("%s"), *OutputMessage);
             // GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, OutputMessage);

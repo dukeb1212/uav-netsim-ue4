@@ -68,26 +68,29 @@ void AZmqPublisher::SafeShutdown()
 
 void AZmqPublisher::PublishString(const FString& Topic, const FString& Message)
 {
-    // Create weak link to avoid accessing deleted instance
-    TWeakObjectPtr<AZmqPublisher> WeakThis(this);
+    //// Create weak link to avoid accessing deleted instance
+    //TWeakObjectPtr<AZmqPublisher> WeakThis(this);
 
-    // Run on background thread to avoid blocking main game thread
-    AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, Topic, Message]() {
-        if (!WeakThis.IsValid()) return;
+    //// Run on background thread to avoid blocking main game thread
+    //AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, Topic, Message]() {
+    //    if (!WeakThis.IsValid()) return;
 
-        // Get the current instance
-        AZmqPublisher* Publisher = WeakThis.Get();
-        FScopeLock Lock(&(Publisher->ZmqMutex));
-        try {
-            std::string fullMessage = TCHAR_TO_UTF8(*(Topic + " " + Message));
+    //    // Get the current instance
+    //    AZmqPublisher* Publisher = WeakThis.Get();
+    //    
+    //    });
 
-            // Send with flag dont wait -> if socket not ready, drop the msg
-            Publisher->Socket.send(zmq::buffer(fullMessage), zmq::send_flags::dontwait);
-        }
-        catch (const zmq::error_t& e) {
-            UE_LOG(LogTemp, Error, TEXT("ZMQ send error: %s"), UTF8_TO_TCHAR(e.what()));
-        }
-        });
+    FScopeLock Lock(&ZmqMutex);
+    try {
+        std::string fullMessage = TCHAR_TO_UTF8(*(Topic + " " + Message));
+
+        // Send with flag dont wait -> if socket not ready, drop the msg
+        Socket.send(zmq::buffer(fullMessage), zmq::send_flags::dontwait);
+        //UE_LOG(LogTemp, Warning, TEXT("Published string!!!"));
+    }
+    catch (const zmq::error_t& e) {
+        UE_LOG(LogTemp, Error, TEXT("ZMQ send error: %s"), UTF8_TO_TCHAR(e.what()));
+    }
 }
 
 void AZmqPublisher::AddTopic()
