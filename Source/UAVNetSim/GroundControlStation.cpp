@@ -30,10 +30,9 @@ void AGroundControlStation::BeginPlay()
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Log, TEXT("BeginPlay called."));
 
-	NetworkStateInstance = Cast<UNetworkStateInstance>(GetGameInstance());
 	NetworkEffectManager = GetGameInstance()->GetSubsystem<UNetworkEffectManager>();
 
-	if (!NetworkEffectManager || !NetworkStateInstance)
+	if (!NetworkEffectManager)
 		UE_LOG(LogTemp, Error, TEXT("No Network Component Found!"));
 	
 	GetWorldTimerManager().SetTimer(ConnectionCheckTimer, this, &AGroundControlStation::CheckConnection, 1.0f, true);
@@ -84,13 +83,8 @@ void AGroundControlStation::ArmDrone(FString UAVName)
 		return;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
-	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-	NetworkEffectManager->SetNetworkParameters(Delay);
-	bool bCanExecute = false;
-
-	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
-		if (bFinalCheck) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName](const float& CheckId) {
+		if (CheckId == 1) {
 			try {
 				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
 					AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName));
@@ -115,13 +109,8 @@ void AGroundControlStation::DisarmDrone(FString UAVName)
 		return;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
-	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-	NetworkEffectManager->SetNetworkParameters(Delay);
-	bool bCanExecute = false;
-
-	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
-		if (bFinalCheck) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName](const float& CheckId) {
+		if (CheckId == 1) {
 			try {
 				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
 					AirSimClient->armDisarm(false, TCHAR_TO_UTF8(*UAVName));
@@ -146,13 +135,8 @@ void AGroundControlStation::Takeoff(FString UAVName)
 		return;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
-	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-	NetworkEffectManager->SetNetworkParameters(Delay);
-	bool bCanExecute = false;
-
-	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
-		if (bFinalCheck) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName](const float& CheckId) {
+		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
 				{
 					try {
@@ -196,13 +180,8 @@ void AGroundControlStation::Land(FString UAVName)
 		return;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
-	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-	NetworkEffectManager->SetNetworkParameters(Delay);
-	bool bCanExecute = false;
-
-	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
-		if (bFinalCheck) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName](const float& CheckId) {
+		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
 				{
 					try {
@@ -240,13 +219,8 @@ void AGroundControlStation::Hover(FString UAVName)
 		return;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
-	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-	NetworkEffectManager->SetNetworkParameters(Delay);
-	bool bCanExecute = false;
-
-	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName](const bool& bFinalCheck) {
-		if (bFinalCheck) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName](const float& CheckId) {
+		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
 				{
 					try {
@@ -284,15 +258,10 @@ int64 AGroundControlStation::GetLandedState(FString UAVName)
 		return -1;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
-	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-	NetworkEffectManager->SetNetworkParameters(Delay);
-	bool bCanExecute = false;
-
 	int64 state = -1;
 
-	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName, &state](const bool& bFinalCheck) {
-		if (bFinalCheck) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, &state](const float& CheckId) {
+		if (CheckId == 1) {
 			try {
 				AllLandedStates.Add(UAVName, AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName)).landed_state);
 				state = (int64)AllLandedStates[UAVName];
@@ -316,13 +285,8 @@ void AGroundControlStation::MoveToLocation(FString UAVName, FVector Location, fl
 		return;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
-	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-	NetworkEffectManager->SetNetworkParameters(Delay);
-	bool bCanExecute = false;
-
-	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName, Location, Velocity, Timeout](const bool& bFinalCheck) {
-		if (bFinalCheck) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, Location, Velocity, Timeout](const float& CheckId) {
+		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Location, Velocity, Timeout]()
 				{
 					try {
@@ -357,13 +321,8 @@ void AGroundControlStation::MoveByPath(FString UAVName, const TArray<FVector>& P
 		return;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
-	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-	NetworkEffectManager->SetNetworkParameters(Delay);
-	bool bCanExecute = false;
-
-	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName, Path, Velocity, Timeout](const bool& bFinalCheck) {
-		if (bFinalCheck) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, Path, Velocity, Timeout](const float& CheckId) {
+		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Path, Velocity, Timeout]()
 				{
 					try {
@@ -401,13 +360,8 @@ void AGroundControlStation::MoveByVelocitySameZ(FString UAVName, FVector2D Veloc
 		return;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(1);
-	float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-	NetworkEffectManager->SetNetworkParameters(Delay);
-	bool bCanExecute = false;
-
-	NetworkEffectManager->QueueCommandExecute(bCanExecute, FDelayExecuteCallback::CreateLambda([this, UAVName, VelocityXY, Z, Timeout](const bool& bFinalCheck) {
-		if (bFinalCheck) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, VelocityXY, Z, Timeout](const float& CheckId) {
+		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, VelocityXY, Z, Timeout]()
 				{
 					try {
@@ -476,10 +430,7 @@ void AGroundControlStation::GetAllTelemetryData()
 				Telemetry.BatteryLevel = 100.0f;  // Placeholder
 				Telemetry.IsConnected = AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName));
 
-				float Delay = 0.001; // Default to 1 ms
-				NetworkEffectManager->SetNetworkParameters(Delay);
-
-				NetworkEffectManager->QueueTelemetryUpdate(Telemetry, FDelayedTelemetryCallback::CreateLambda([this](const FTelemetryData& DelayedTelemetry) {
+				NetworkEffectManager->QueueTelemetryUpdate(Telemetry, 1, FDelayedTelemetryCallback::CreateLambda([this](const FTelemetryData& DelayedTelemetry) {
 					// Push telemetry data to the main thread
 					AsyncTask(ENamedThreads::GameThread, [this, DelayedTelemetry]()
 						{
@@ -519,8 +470,6 @@ void AGroundControlStation::GetTelemetryDataByName(FString UAVName, int32 FlowId
 		return;
 	}
 
-	FFlowData* FlowData = NetworkStateInstance->GetFlowDataById(FlowId);
-
 	try {
 		if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
 			auto drone_state = AirSimClient->getMultirotorState(TCHAR_TO_UTF8(*UAVName));
@@ -536,10 +485,7 @@ void AGroundControlStation::GetTelemetryDataByName(FString UAVName, int32 FlowId
 			Telemetry.BatteryLevel = 100.0f;  // Placeholder
 			Telemetry.IsConnected = AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName));
 
-			float Delay = NetworkEffectManager->CalculateDelay(FlowData->MeanDelay, FlowData->MeanJitter);
-			NetworkEffectManager->SetNetworkParameters(Delay);
-
-			NetworkEffectManager->QueueTelemetryUpdate(Telemetry, FDelayedTelemetryCallback::CreateLambda([this](const FTelemetryData& DelayedTelemetry) {
+			NetworkEffectManager->QueueTelemetryUpdate(Telemetry, FlowId, FDelayedTelemetryCallback::CreateLambda([this](const FTelemetryData& DelayedTelemetry) {
 				// Push telemetry data to the main thread
 				AsyncTask(ENamedThreads::GameThread, [this, DelayedTelemetry]()
 					{
@@ -675,48 +621,48 @@ void AGroundControlStation::HandleVideoFrame(const FString& UAVName, UTexture2D*
 
 // ==================================== NETWORK SIMULATION FUNCTIONS ====================================
 
-void AGroundControlStation::SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction)
-{
-	// Get network data from the network state instance
-	if (!NetworkStateInstance || !NetworkStateInstance->GetFlowDataMap().Contains(FlowId))
-	{
-		//UE_LOG(LogTemp, Error, TEXT("Network state instance not found or flow data not available!"));
-		TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, RequestFunction]()
-			{
-				if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-				RequestFunction();
-			});
-		return;
-	}
-
-	const FFlowData& FlowData = NetworkStateInstance->GetFlowDataMap()[FlowId];
-
-	float Delay = FlowData.MeanDelay; // microseconds
-	float Jitter = FlowData.MeanJitter; // microseconds
-	float PacketLoss = FlowData.PacketLossL3;
-
-	// Simulate network packet loss
-	if (FMath::FRandRange(0.0f,100.0f) < PacketLoss)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Packet loss detected!"));
-		return;
-	}
-
-	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
-	// Simulate network delay
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, Delay, Jitter, RequestFunction]()
-	{
-		if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-		FPlatformProcess::Sleep(FMath::FRandRange((Delay - Jitter) / 1000000, (Delay + Jitter) / 1000000));
-		
-		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, RequestFunction]()
-			{
-				if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
-				RequestFunction();
-			});
-	});
-}
+//void AGroundControlStation::SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction)
+//{
+//	// Get network data from the network state instance
+//	if (!NetworkStateInstance || !NetworkStateInstance->GetFlowDataMap().Contains(FlowId))
+//	{
+//		//UE_LOG(LogTemp, Error, TEXT("Network state instance not found or flow data not available!"));
+//		TWeakObjectPtr<AGroundControlStation> WeakThis = this;
+//		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, RequestFunction]()
+//			{
+//				if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
+//				RequestFunction();
+//			});
+//		return;
+//	}
+//
+//	const FFlowData& FlowData = NetworkStateInstance->GetFlowDataMap()[FlowId];
+//
+//	float Delay = FlowData.MeanDelay; // microseconds
+//	float Jitter = FlowData.MeanJitter; // microseconds
+//	float PacketLoss = FlowData.PacketLossL3;
+//
+//	// Simulate network packet loss
+//	if (FMath::FRandRange(0.0f,100.0f) < PacketLoss)
+//	{
+//		UE_LOG(LogTemp, Warning, TEXT("Packet loss detected!"));
+//		return;
+//	}
+//
+//	TWeakObjectPtr<AGroundControlStation> WeakThis = this;
+//	// Simulate network delay
+//	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, Delay, Jitter, RequestFunction]()
+//	{
+//		if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
+//		FPlatformProcess::Sleep(FMath::FRandRange((Delay - Jitter) / 1000000, (Delay + Jitter) / 1000000));
+//		
+//		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [WeakThis, RequestFunction]()
+//			{
+//				if (!WeakThis.IsValid() || WeakThis.Get()->bShuttingDown || IsEngineExitRequested() || IsGarbageCollecting()) return;
+//				RequestFunction();
+//			});
+//	});
+//}
 
 // Cleanup
 AGroundControlStation::~AGroundControlStation()

@@ -28,6 +28,8 @@ public:
     FFlowData* GetFlowDataById(int32 FlowId);
     void InsertOrAssign(int32 FlowId, FFlowData FlowData);
 
+    bool ContainsFlowId(int32 FlowId);
+
 private:
     TMap<int32, FFlowData> FlowDataMap;
     AZmqSubscriber* ZmqSubscriberInstance = nullptr;

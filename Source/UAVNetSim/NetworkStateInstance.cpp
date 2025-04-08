@@ -59,6 +59,11 @@ void UNetworkStateInstance::InsertOrAssign(int32 FlowId, FFlowData FlowData)
     FlowDataMap.FindOrAdd(FlowId) = FlowData;
 }
 
+bool UNetworkStateInstance::ContainsFlowId(int32 FlowId)
+{
+	return FlowDataMap.Contains(FlowId);
+}
+
 void UNetworkStateInstance::ParseAndStoreNetworkData(const FString& JsonMessage)
 {
     TSharedPtr<FJsonObject> JsonObject;

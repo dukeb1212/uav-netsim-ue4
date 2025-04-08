@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "../DataStruct/Telemetry.h"
+#include "../NetworkStateInstance.h"
 #include "NetworkEffectManager.generated.h"
 
 DECLARE_DELEGATE_OneParam(FDelayedTelemetryCallback, const FTelemetryData&);
-DECLARE_DELEGATE_OneParam(FDelayExecuteCallback, const bool&);
+DECLARE_DELEGATE_OneParam(FDelayExecuteCallback, const float&);
 /**
  * 
  */
@@ -18,14 +19,17 @@ struct FDelayedTelemetry {
 	GENERATED_BODY()
 	FTelemetryData Data;
 	float RemainingDelay;
+	bool bCanSkip;
 	FDelayedTelemetryCallback Callback;
 };
 
 USTRUCT()
 struct FDelayExecute {
 	GENERATED_BODY()
-	bool bCanExecute;
+	int32 FlowId;
+	float PacketLossRate;
 	float RemainingDelay;
+	bool bCanSkip;
 	FDelayExecuteCallback Callback;
 };
 
@@ -39,28 +43,29 @@ public:
 
 	virtual void Deinitialize() override;
 
-	UFUNCTION(BlueprintCallable, Category = "Network Effects")
-	void SetNetworkParameters(float Delay);
+	/*UFUNCTION(BlueprintCallable, Category = "Network Effects")
+	void SetNetworkParameters(float Delay);*/
 
-	void QueueTelemetryUpdate(const FTelemetryData& TelemetryData, FDelayedTelemetryCallback Callback);
+	void QueueTelemetryUpdate(const FTelemetryData& TelemetryData, int32 FlowId, FDelayedTelemetryCallback Callback);
 
-	void QueueExecuteUpdate(const bool& bCanExecute, FDelayExecuteCallback Callback);
+	void QueueVideoUpdate(const int32& FlowId, FDelayExecuteCallback Callback);
 
-	void QueueCommandExecute(const bool& bCanExecute, FDelayExecuteCallback Callback);
+	void QueueCommandExecute(const int32& FlowId, FDelayExecuteCallback Callback);
 
 	float CalculateDelay(float MeanDelay, float MeanJitter);
 
+	float CalculatePacketLossRate(float PacketLoss, float TxPackets);
 
 private:
 	bool Tick(float DeltaTime);
 
 	FDelegateHandle TickDelegateHandle;
 
-	float CurrentDelay = 0.0f;
-
 	TArray<FDelayedTelemetry> TelemetryQueue;
 	
-	TArray<FDelayExecute> ExecuteQueue;
+	TArray<FDelayExecute> VideoFrameQueue;
 
 	TArray<FDelayExecute> CommandQueue;
+
+	UNetworkStateInstance* NetworkStateInstance = nullptr;
 };

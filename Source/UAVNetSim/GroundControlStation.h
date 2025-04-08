@@ -116,9 +116,7 @@ private:
 
 	UNetworkEffectManager* NetworkEffectManager;
 
-	UNetworkStateInstance* NetworkStateInstance;
-
-	void SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction);
+	//void SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction);
 
 	void CheckConnection();
 
