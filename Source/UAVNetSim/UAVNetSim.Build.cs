@@ -38,11 +38,11 @@ public class UAVNetSim : ModuleRules
 
         // Add runtime dependencies
         RuntimeDependencies.Add(Path.Combine(VcpkgBinariesPath, "libzmq-mt-4_3_5.dll"));
-        RuntimeDependencies.Add(Path.Combine(VcpkgBinariesPath, "opencv_world4.dll"));
+        //RuntimeDependencies.Add(Path.Combine(VcpkgBinariesPath, "opencv_world4.dll"));
 
         // Add libraries
         PublicAdditionalLibraries.Add(Path.Combine(VcpkgLibraryPath, "libzmq-mt-4_3_5.lib"));
-        PublicAdditionalLibraries.Add(Path.Combine(VcpkgLibraryPath, "opencv_world4.lib"));
+        //PublicAdditionalLibraries.Add(Path.Combine(VcpkgLibraryPath, "opencv_world4.lib"));
 
 
         PrivateDependencyModuleNames.AddRange(new string[] {});

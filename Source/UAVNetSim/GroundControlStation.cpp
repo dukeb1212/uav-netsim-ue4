@@ -6,7 +6,6 @@
 #include "Async/Async.h"
 #include "Vehicles/Multirotor/FlyingPawn.h"
 #include "Kismet/GameplayStatics.h"
-#include <opencv2/imgcodecs.hpp>
 #include <fstream>
 
 // Sets default values
@@ -515,95 +514,95 @@ void AGroundControlStation::GetTelemetryDataByName(FString UAVName, int32 FlowId
 	}
 }
 
-void AGroundControlStation::GetLastestVideoFrame(FString UAVName, bool IsCapture, FString FilePath)
-{
-	if (bShuttingDown || IsEngineExitRequested() || !bIsConnected || IsGarbageCollecting())
-	{
-		UE_LOG(LogTemp, Error, TEXT("Drone not connected!"));
-		return;
-	}
-
-	try {
-		std::vector<uint8_t> ImageData = AirSimClient->simGetImage("front_center", msr::airlib::ImageCaptureBase::ImageType::Scene, TCHAR_TO_UTF8(*UAVName));
-		if (ImageData.empty())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Failed to retrieve video frame for %s"), *UAVName);
-			return;
-		}
-		cv::Mat DecodedImage = cv::imdecode(cv::Mat(ImageData), cv::IMREAD_COLOR);
-		if (DecodedImage.empty())
-		{
-			UE_LOG(LogTemp, Error, TEXT("Failed to decode image for %s"), *UAVName);
-			return;
-		}
-		if (IsCapture) {
-			// Define the save folder path
-			FString SaveFolder = FPaths::ProjectDir() + TEXT("Saved/Images/");
-			// Ensure the directory exists
-			if (!FPaths::DirectoryExists(SaveFolder)) {
-				IFileManager::Get().MakeDirectory(*SaveFolder, true);
-			}
-			// Construct the full save path with filename
-			FString SavePath = SaveFolder + UAVName + TEXT("_") + FDateTime::Now().ToString() + TEXT(".png");
-			std::string SavePathStr = TCHAR_TO_UTF8(*SavePath);
-			// Save the image using OpenCV
-			if (!cv::imwrite(SavePathStr, DecodedImage)) {
-				UE_LOG(LogTemp, Error, TEXT("Failed to save image to %s"), *SavePath);
-			}
-			else {
-				UE_LOG(LogTemp, Warning, TEXT("Image saved successfully at: %s"), *SavePath);
-			}
-		}
-		// Convert image to texture
-		UTexture2D* VideoFrame = ConvertImageToTexture(DecodedImage);
-		if (VideoFrame) {
-			HandleVideoFrame(UAVName, VideoFrame);
-		}
-	}
-	catch (const std::exception& e) {
-		UE_LOG(LogTemp, Error, TEXT("Get lastest video frame error: %s"), UTF8_TO_TCHAR(e.what()));
-	}
-}
-
-UTexture2D* AGroundControlStation::ConvertImageToTexture(const cv::Mat& Image)
-{
-	if (IsEngineExitRequested()) return nullptr;
-	if (Image.empty()) return nullptr;
-
-	cv::Mat ProcessedImage;
-	if (Image.type() == CV_8UC3)
-	{
-		cv::cvtColor(Image, ProcessedImage, cv::COLOR_BGR2BGRA);
-	}
-	else if (Image.type() == CV_8UC4)
-	{
-		ProcessedImage = Image.clone(); // Directly use if already in BGRA
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MatToTexture2D: Unsupported Mat type. Only CV_8UC3 and CV_8UC4 are supported."));
-		return nullptr;
-	}
-
-	// Create texture
-	UTexture2D* Texture = UTexture2D::CreateTransient(ProcessedImage.cols, ProcessedImage.rows, PF_B8G8R8A8);
-
-	if (!Texture || !Texture->PlatformData)
-	{
-		UE_LOG(LogTemp, Error, TEXT("MatToTexture2D: Failed to create texture."));
-		return nullptr;
-	}
-	Texture->SRGB = 0;
-	Texture->AddToRoot();
-
-	// Copy image data to texture
-	uint8* TextureData = (uint8*)Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-	FMemory::Memcpy(TextureData, ProcessedImage.data, ProcessedImage.total() * ProcessedImage.elemSize());
-	Texture->PlatformData->Mips[0].BulkData.Unlock();
-
-	Texture->UpdateResource();
-	return Texture;
-}
+//void AGroundControlStation::GetLastestVideoFrame(FString UAVName, bool IsCapture, FString FilePath)
+//{
+//	if (bShuttingDown || IsEngineExitRequested() || !bIsConnected || IsGarbageCollecting())
+//	{
+//		UE_LOG(LogTemp, Error, TEXT("Drone not connected!"));
+//		return;
+//	}
+//
+//	try {
+//		std::vector<uint8_t> ImageData = AirSimClient->simGetImage("front_center", msr::airlib::ImageCaptureBase::ImageType::Scene, TCHAR_TO_UTF8(*UAVName));
+//		if (ImageData.empty())
+//		{
+//			UE_LOG(LogTemp, Warning, TEXT("Failed to retrieve video frame for %s"), *UAVName);
+//			return;
+//		}
+//		cv::Mat DecodedImage = cv::imdecode(cv::Mat(ImageData), cv::IMREAD_COLOR);
+//		if (DecodedImage.empty())
+//		{
+//			UE_LOG(LogTemp, Error, TEXT("Failed to decode image for %s"), *UAVName);
+//			return;
+//		}
+//		if (IsCapture) {
+//			// Define the save folder path
+//			FString SaveFolder = FPaths::ProjectDir() + TEXT("Saved/Images/");
+//			// Ensure the directory exists
+//			if (!FPaths::DirectoryExists(SaveFolder)) {
+//				IFileManager::Get().MakeDirectory(*SaveFolder, true);
+//			}
+//			// Construct the full save path with filename
+//			FString SavePath = SaveFolder + UAVName + TEXT("_") + FDateTime::Now().ToString() + TEXT(".png");
+//			std::string SavePathStr = TCHAR_TO_UTF8(*SavePath);
+//			// Save the image using OpenCV
+//			if (!cv::imwrite(SavePathStr, DecodedImage)) {
+//				UE_LOG(LogTemp, Error, TEXT("Failed to save image to %s"), *SavePath);
+//			}
+//			else {
+//				UE_LOG(LogTemp, Warning, TEXT("Image saved successfully at: %s"), *SavePath);
+//			}
+//		}
+//		// Convert image to texture
+//		UTexture2D* VideoFrame = ConvertImageToTexture(DecodedImage);
+//		if (VideoFrame) {
+//			HandleVideoFrame(UAVName, VideoFrame);
+//		}
+//	}
+//	catch (const std::exception& e) {
+//		UE_LOG(LogTemp, Error, TEXT("Get lastest video frame error: %s"), UTF8_TO_TCHAR(e.what()));
+//	}
+//}
+//
+//UTexture2D* AGroundControlStation::ConvertImageToTexture(const cv::Mat& Image)
+//{
+//	if (IsEngineExitRequested()) return nullptr;
+//	if (Image.empty()) return nullptr;
+//
+//	cv::Mat ProcessedImage;
+//	if (Image.type() == CV_8UC3)
+//	{
+//		cv::cvtColor(Image, ProcessedImage, cv::COLOR_BGR2BGRA);
+//	}
+//	else if (Image.type() == CV_8UC4)
+//	{
+//		ProcessedImage = Image.clone(); // Directly use if already in BGRA
+//	}
+//	else
+//	{
+//		UE_LOG(LogTemp, Warning, TEXT("MatToTexture2D: Unsupported Mat type. Only CV_8UC3 and CV_8UC4 are supported."));
+//		return nullptr;
+//	}
+//
+//	// Create texture
+//	UTexture2D* Texture = UTexture2D::CreateTransient(ProcessedImage.cols, ProcessedImage.rows, PF_B8G8R8A8);
+//
+//	if (!Texture || !Texture->PlatformData)
+//	{
+//		UE_LOG(LogTemp, Error, TEXT("MatToTexture2D: Failed to create texture."));
+//		return nullptr;
+//	}
+//	Texture->SRGB = 0;
+//	Texture->AddToRoot();
+//
+//	// Copy image data to texture
+//	uint8* TextureData = (uint8*)Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+//	FMemory::Memcpy(TextureData, ProcessedImage.data, ProcessedImage.total() * ProcessedImage.elemSize());
+//	Texture->PlatformData->Mips[0].BulkData.Unlock();
+//
+//	Texture->UpdateResource();
+//	return Texture;
+//}
 
 
 void AGroundControlStation::HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture)

@@ -11,11 +11,6 @@
 #include "Delegates/Delegate.h"
 #include "DataStruct/Telemetry.h"
 
-#ifdef check
-#undef check
-#endif
-
-#include "opencv2/opencv.hpp"
 #include "GroundControlStation.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVideoFrameReceived, const FString&, UAVName, UTextureRenderTarget2D*, VideoRenderTarget);
@@ -90,8 +85,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void GetTelemetryDataByName(FString UAVName, int32 FlowId);
 
-	UFUNCTION(BlueprintCallable, Category = "Drone Control")
-	void GetLastestVideoFrame(FString UAVName, bool IsCapture = false, FString FilePath = "");
+	/*UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void GetLastestVideoFrame(FString UAVName, bool IsCapture = false, FString FilePath = "");*/
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void MoveToLocation(FString UAVName, FVector Location, float Velocity, float Timeout);
@@ -120,5 +115,5 @@ private:
 
 	void CheckConnection();
 
-	UTexture2D* ConvertImageToTexture(const cv::Mat& Image);
+	/*UTexture2D* ConvertImageToTexture(const cv::Mat& Image);*/
 };
