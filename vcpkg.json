@@ -1,13 +1,7 @@
 {
   "dependencies": [
     "zeromq",
-    "cppzmq",
-    {
-      "name": "opencv4",
-      "features": [
-        "world"
-      ]
-    }
+    "cppzmq"
   ],
   "builtin-baseline": "117524bad2789b8aa6954324a1bee4bffb7d6d09"
 }
