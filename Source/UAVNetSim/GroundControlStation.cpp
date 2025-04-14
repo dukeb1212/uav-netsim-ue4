@@ -368,8 +368,116 @@ void AGroundControlStation::MoveByVelocitySameZ(FString UAVName, FVector2D Veloc
 						//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
 						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
 						// Move by velocity with same Z
-						AirSimClient->moveByVelocityZAsync(VelocityXY.X, VelocityXY.Y, -Z, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
+						AirSimClient->moveByVelocityZBodyFrameAsync(VelocityXY.X, VelocityXY.Y, -Z, Timeout, msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
 							TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout * 1.5);
+						UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z: %s"), *UAVName);
+						if (bTaskResult)
+						{
+							UE_LOG(LogTemp, Log, TEXT("Drone Move by Velocity with same Z Successful: %s"), *UAVName);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed: %s"), *UAVName);
+						}
+					}
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Move by velocity with same Z error: %s"), UTF8_TO_TCHAR(e.what()));
+					}
+				});
+		}
+		}));
+}
+
+void AGroundControlStation::RotateByYawRate(FString UAVName, float YawRate, float Duration)
+{
+	if (bShuttingDown || IsEngineExitRequested() || !bIsConnected || IsGarbageCollecting())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Drone not connected!"));
+		return;
+	}
+
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, YawRate, Duration](const float& CheckId) {
+		if (CheckId == 1) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, YawRate, Duration]()
+				{
+					try {
+						// Go to target Z first
+						//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
+						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+						// Move by velocity with same Z
+						AirSimClient->rotateByYawRateAsync(YawRate, Duration, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult);
+						UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z: %s"), *UAVName);
+						if (bTaskResult)
+						{
+							UE_LOG(LogTemp, Log, TEXT("Drone Move by Velocity with same Z Successful: %s"), *UAVName);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed: %s"), *UAVName);
+						}
+					}
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Move by velocity with same Z error: %s"), UTF8_TO_TCHAR(e.what()));
+					}
+				});
+		}
+		}));
+}
+
+void AGroundControlStation::RotateToYaw(FString UAVName, float Yaw, float Margin, float Timeout)
+{
+	if (bShuttingDown || IsEngineExitRequested() || !bIsConnected || IsGarbageCollecting())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Drone not connected!"));
+		return;
+	}
+
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, Yaw, Margin, Timeout](const float& CheckId) {
+		if (CheckId == 1) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Yaw, Margin, Timeout]()
+				{
+					try {
+						// Go to target Z first
+						//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
+						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+						// Move by velocity with same Z
+						AirSimClient->rotateToYawAsync(Yaw, Timeout, Margin, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout * 1.5f);
+						UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z: %s"), *UAVName);
+						if (bTaskResult)
+						{
+							UE_LOG(LogTemp, Log, TEXT("Drone Move by Velocity with same Z Successful: %s"), *UAVName);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed: %s"), *UAVName);
+						}
+					}
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Move by velocity with same Z error: %s"), UTF8_TO_TCHAR(e.what()));
+					}
+				});
+		}
+		}));
+}
+
+void AGroundControlStation::MoveToZ(FString UAVName, float Z, float Velocity, float Timeout)
+{
+	if (bShuttingDown || IsEngineExitRequested() || !bIsConnected || IsGarbageCollecting())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Drone not connected!"));
+		return;
+	}
+
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, Z, Velocity, Timeout](const float& CheckId) {
+		if (CheckId == 1) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Z, Velocity, Timeout]()
+				{
+					try {
+						// Go to target Z first
+						//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
+						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+						// Move by velocity with same Z
+						AirSimClient->moveToZAsync(Z, Velocity, Timeout, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout * 1.5f);
 						UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z: %s"), *UAVName);
 						if (bTaskResult)
 						{
