@@ -97,6 +97,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void MoveByVelocitySameZ(FString UAVName, FVector2D VelocityXY, float Z, float Timeout);
 
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void RotateByYawRate(FString UAVName, float YawRate, float Duration);
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void RotateToYaw(FString UAVName, float Yaw, float Margin, float Timeout);
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void MoveToZ(FString UAVName, float Z, float Velocity, float Timeout);
+
 	void HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture);
 
 private:
