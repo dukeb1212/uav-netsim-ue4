@@ -7,6 +7,7 @@
 #include "JsonUtilities.h"
 #include "Engine/Engine.h"
 #include "DataStruct/Flow.h"
+#include "UAVNetSim/GroundControlStation.h"
 
 
 void UNetworkStateInstance::Init()
@@ -27,16 +28,21 @@ void UNetworkStateInstance::BindToZmqSubscriber(const UWorld::FActorsInitialized
         return;
     }
 
-    ZmqSubscriberInstance = Cast<AZmqSubscriber>(UGameplayStatics::GetActorOfClass(World, AZmqSubscriber::StaticClass()));
+	AGroundControlStation* GroundControlStation = Cast<AGroundControlStation>(UGameplayStatics::GetActorOfClass(World, AGroundControlStation::StaticClass()));
 
-    if (ZmqSubscriberInstance)
+    if (GroundControlStation)
     {
-        ZmqSubscriberInstance->OnMessageReceived.AddDynamic(this, &UNetworkStateInstance::HandleMessage);
-        UE_LOG(LogTemp, Log, TEXT("Successfully bound to ZMQ messages!"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("ZMQ Subscriber not found!"));
+        ZmqSubscriberInstance = Cast<AZmqSubscriber>(GroundControlStation->Ns3SubscriberComponent->GetChildActor());
+
+        if (ZmqSubscriberInstance)
+        {
+            ZmqSubscriberInstance->OnMessageReceived.AddDynamic(this, &UNetworkStateInstance::HandleMessage);
+            UE_LOG(LogTemp, Log, TEXT("Successfully bound to Ns3 messages!"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("ZMQ Subscriber not found!"));
+        }
     }
 }
 

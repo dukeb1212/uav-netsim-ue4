@@ -10,10 +10,12 @@
 #include "Network/NetworkEffectManager.h"
 #include "Delegates/Delegate.h"
 #include "DataStruct/Telemetry.h"
+#include "Zmq/ZmqPublisher.h"
+#include "Zmq/ZmqSubscriber.h"
+#include "Zmq/ZmqAIFeedback.h"
+#include "Components/ChildActorComponent.h"
 
 #include "GroundControlStation.generated.h"
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVideoFrameReceived, const FString&, UAVName, UTextureRenderTarget2D*, VideoRenderTarget);
 
 UCLASS()
 class UAVNETSIM_API AGroundControlStation : public APawn
@@ -50,8 +52,17 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Drone Data")
 	TArray<FString> ListUAVName = { TEXT("uav1") };
 
-	UPROPERTY(BlueprintAssignable, Category = "Video Streaming")
-	FOnVideoFrameReceived OnVideoFrameReceived;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZMQ", meta = (AllowPrivateAccess = "true"))
+	UChildActorComponent* Ns3SubscriberComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZMQ", meta = (AllowPrivateAccess = "true"))
+	UChildActorComponent* AISubscriberComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZMQ", meta = (AllowPrivateAccess = "true"))
+	UChildActorComponent* Ns3PublisherComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZMQ", meta = (AllowPrivateAccess = "true"))
+	UChildActorComponent* AIPublisherComponent;
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -107,6 +118,7 @@ public:
 	void MoveToZ(FString UAVName, float Z, float Velocity, float Timeout);
 
 	void HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture);
+
 
 private:
 	// AirSim client

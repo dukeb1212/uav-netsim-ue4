@@ -21,6 +21,18 @@ AGroundControlStation::AGroundControlStation()
 	for (FString UAVName : ListUAVName) {
 		AllLandedStates.Add(UAVName, msr::airlib::LandedState::Landed);
 	}
+
+	Ns3SubscriberComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("Ns3SubscriberComponent"));
+	Ns3SubscriberComponent->SetChildActorClass(AZmqSubscriber::StaticClass());
+
+	Ns3PublisherComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("Ns3PublisherComponent"));
+	Ns3PublisherComponent->SetChildActorClass(AZmqPublisher::StaticClass());
+
+	AISubscriberComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("AISubscriberComponent"));
+	AISubscriberComponent->SetChildActorClass(AZmqAIFeedback::StaticClass());
+
+	AIPublisherComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("AIPublisherComponent"));
+	AIPublisherComponent->SetChildActorClass(AZmqPublisher::StaticClass());
 }
 
 // Called when the game starts or when spawned

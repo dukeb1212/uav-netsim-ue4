@@ -1,7 +1,8 @@
 {
   "dependencies": [
     "zeromq",
-    "cppzmq"
+    "cppzmq",
+    "libjpeg-turbo"
   ],
   "builtin-baseline": "117524bad2789b8aa6954324a1bee4bffb7d6d09"
 }

@@ -4,6 +4,7 @@
 #include "NetworkEventManager.h"
 #include "../NetworkStateInstance.h"
 #include "Kismet/GameplayStatics.h"
+#include "UAVNetSim/GroundControlStation.h"
 
 void UNetworkEventManager::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -20,15 +21,24 @@ void UNetworkEventManager::BindToZmqPublisher(const UWorld::FActorsInitializedPa
 		return;
 	}
 
-	ZmqPublisher = Cast<AZmqPublisher>(UGameplayStatics::GetActorOfClass(World, AZmqPublisher::StaticClass()));
-
-	if (ZmqPublisher)
+	AGroundControlStation* GroundControlStation = Cast<AGroundControlStation>(UGameplayStatics::GetActorOfClass(World, AGroundControlStation::StaticClass()));
+	if (GroundControlStation)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Successfully bound to ZMQ publisher!"));
+		ZmqPublisher = Cast<AZmqPublisher>(GroundControlStation->Ns3PublisherComponent->GetChildActor());
+
+		if (ZmqPublisher)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Successfully bound to ZMQ publisher!"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("ZMQ Publisher not found!"));
+		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("ZMQ Publisher not found!"));
+		UE_LOG(LogTemp, Error, TEXT("Ground Control Station not found!"));
+		return;
 	}
 }
 
