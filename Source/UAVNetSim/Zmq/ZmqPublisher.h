@@ -5,7 +5,9 @@
 #include <zmq.hpp>
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include <Engine/TextureRenderTarget2D.h>
 #include "ZmqPublisher.generated.h"
+
 
 UCLASS()
 class UAVNETSIM_API AZmqPublisher : public AActor
@@ -73,11 +75,20 @@ public:
         FString OverrideTopic,
         const TMap<FString, FString>& OverrideExtraFields);
 
+    UFUNCTION(BlueprintCallable, Category = "ZMQ")
+    void PublishRawImage(UTextureRenderTarget2D* RenderTarget);
+
+    void CompressWithTurboJPEG(const TArray<uint8>& RGBData, int32 Width, int32 Height, TArray<uint8>& OutJPEG);
+
 private:
     zmq::context_t Context;
     zmq::socket_t Socket;
     FTimerHandle TimerHandle;
     FCriticalSection ZmqMutex;
+
+    TArray<FColor> PixelBuffer_Back;
+    TArray<uint8> RGBBuffer_Back;
+    std::atomic<bool> bBufferInUse = false;
 
     // Auto publish to check health
     void SendHeartbeat();

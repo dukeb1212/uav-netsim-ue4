@@ -7,6 +7,8 @@
 #include "JsonObjectConverter.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
+#include <ImageUtils.h>
+#include "turbojpeg.h"
 
 // Sets default values
 AZmqPublisher::AZmqPublisher()
@@ -172,6 +174,118 @@ void AZmqPublisher::PublishAllActors(const TArray<TSubclassOf<AActor>>& Override
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to serialize JSON! Check data types."));
     }
+}
+
+void AZmqPublisher::PublishRawImage(UTextureRenderTarget2D* RenderTarget)
+{
+    if (!RenderTarget || !RenderTarget->GameThread_GetRenderTargetResource())
+        return;
+
+    FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
+    int32 SizeX = RenderTarget->GetSurfaceWidth(); // int32, not float!
+    int32 SizeY = RenderTarget->GetSurfaceHeight();
+
+    // Double-buffered setup
+    if (bBufferInUse) return;
+    bBufferInUse = true;
+
+    PixelBuffer_Back.SetNumUninitialized(SizeX * SizeY);
+    RGBBuffer_Back.SetNumUninitialized(SizeX * SizeY * 3);
+
+    ENQUEUE_RENDER_COMMAND(CaptureCommand)(
+        [RTResource, SizeX, SizeY, this](FRHICommandListImmediate& RHICmdList)
+        {
+            FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+            RHICmdList.ReadSurfaceData(
+                RTResource->GetRenderTargetTexture(),
+                FIntRect(0, 0, SizeX, SizeY),
+                PixelBuffer_Back,
+                ReadFlags
+            );
+
+            Async(EAsyncExecution::ThreadPool, [this, SizeX, SizeY]()
+                {
+                    // Validate buffer sizes
+                    if (PixelBuffer_Back.Num() != SizeX * SizeY || RGBBuffer_Back.Num() != SizeX * SizeY * 3)
+                    {
+                        UE_LOG(LogTemp, Error, TEXT("Buffer size mismatch!"));
+                        bBufferInUse = false;
+                        return;
+                    }
+
+                    // Safe ParallelFor with bounds checking
+                    ParallelFor(SizeX * SizeY, [&](int32 i)
+                        {
+                            if (i >= 0 && i < PixelBuffer_Back.Num() && (i * 3 + 2) < RGBBuffer_Back.Num())
+                            {
+                                RGBBuffer_Back[i * 3 + 0] = PixelBuffer_Back[i].R;
+                                RGBBuffer_Back[i * 3 + 1] = PixelBuffer_Back[i].G;
+                                RGBBuffer_Back[i * 3 + 2] = PixelBuffer_Back[i].B;
+                            }
+                        });
+
+                    // Compress and send
+                    TArray<uint8> CompressedJPEG;
+                    CompressWithTurboJPEG(RGBBuffer_Back, SizeX, SizeY, CompressedJPEG);
+
+                    FScopeLock Lock(&ZmqMutex);
+                    try {
+                        zmq::message_t Msg(CompressedJPEG.Num());
+                        FMemory::Memcpy(Msg.data(), CompressedJPEG.GetData(), CompressedJPEG.Num());
+                        Socket.send(Msg, zmq::send_flags::dontwait);
+                    }
+                    catch (const zmq::error_t& e) {
+                        UE_LOG(LogTemp, Error, TEXT("ZMQ send error: %s"), UTF8_TO_TCHAR(e.what()));
+                    }
+
+                    bBufferInUse = false; // Release buffer
+                });
+        });
+}
+
+void AZmqPublisher::CompressWithTurboJPEG(const TArray<uint8>& RGBData, int32 Width, int32 Height, TArray<uint8>& OutJPEG)
+{
+    tjhandle tjInstance = tjInitCompress();
+    if (!tjInstance) {
+        UE_LOG(LogTemp, Error, TEXT("TurboJPEG init failed: %s"), tjGetErrorStr());
+        return;
+    }
+
+    int32 PixelFormat = TJPF_RGB; // Input format (RGB)
+    int32 Subsampling = TJSAMP_444; // Chroma subsampling (4:4:4 = no subsampling)
+    int32 JPEGQuality = 85; // Quality (0-100)
+    int32 Flags = TJFLAG_FASTDCT; // Optimize for speed over quality
+
+    // Compress to JPEG
+    unsigned char* JPEGBuffer = nullptr; // Output buffer allocated by TurboJPEG
+    unsigned long JPEGSize = 0;
+
+    int Result = tjCompress2(
+        tjInstance,
+        RGBData.GetData(), // Input RGB buffer
+        Width,
+        Width * 3, // Stride (pitch) = width * 3 bytes per pixel (RGB)
+        Height,
+        PixelFormat,
+        &JPEGBuffer, // Output buffer (allocated by TurboJPEG)
+        &JPEGSize,   // Output size
+        Subsampling,
+        JPEGQuality,
+        Flags
+    );
+
+    if (Result != 0) {
+        UE_LOG(LogTemp, Error, TEXT("TurboJPEG compression failed: %s"), tjGetErrorStr());
+        tjDestroy(tjInstance);
+        return;
+    }
+
+    // Copy compressed data to Unreal's TArray
+    OutJPEG.Append(JPEGBuffer, JPEGSize);
+
+    // Cleanup
+    tjFree(JPEGBuffer);
+    tjDestroy(tjInstance);
 }
 
 void AZmqPublisher::SendHeartbeat()
