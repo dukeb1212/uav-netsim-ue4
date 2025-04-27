@@ -117,6 +117,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void MoveToZ(FString UAVName, float Z, float Velocity, float Timeout);
 
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void CircleAroundPoint(FString UAVName, FVector TargetLocation, float Radius, float Velocity, float Duration);
+
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void SaveLogCsv(FString FilePath, TArray<FString> Data);
+
 	void HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture);
 
 

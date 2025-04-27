@@ -38,10 +38,10 @@ void AZmqAIFeedback::HandleAIFeedback(const FString& Topic, const FString& Messa
 
         UE_LOG(LogTemp, Log, TEXT("ResNet8 → Class: %s (Confidence: %.3f)"), *ClassLabel, ClassConfidence);
 
-        if (OnFeedbackReceived.IsBound())
+        /*if (OnFeedbackReceived.IsBound())
         {
             OnFeedbackReceived.Broadcast(ClassLabel, ClassConfidence);
-        }
+        }*/
 
         const TArray<TSharedPtr<FJsonValue>>* BoxesArray;
 		TArray<FDetectedBox> DetectedBoxes;
@@ -71,6 +71,11 @@ void AZmqAIFeedback::HandleAIFeedback(const FString& Topic, const FString& Messa
 						Box.Confidence = Confidence;
 
                         DetectedBoxes.Add(Box);
+
+                        if (OnFeedbackReceived.IsBound())
+                        {
+                            OnFeedbackReceived.Broadcast(ClassLabel, Confidence);
+                        }
                     }
                 }
             }

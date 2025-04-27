@@ -96,6 +96,7 @@ void AGroundControlStation::ArmDrone(FString UAVName)
 
 	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName](const float& CheckId) {
 		if (CheckId == 1) {
+			bTaskResult = false;
 			try {
 				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
 					AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName));
@@ -122,6 +123,7 @@ void AGroundControlStation::DisarmDrone(FString UAVName)
 
 	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName](const float& CheckId) {
 		if (CheckId == 1) {
+			bTaskResult = false;
 			try {
 				if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
 					AirSimClient->armDisarm(false, TCHAR_TO_UTF8(*UAVName));
@@ -150,6 +152,7 @@ void AGroundControlStation::Takeoff(FString UAVName)
 		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
 				{
+					bTaskResult = false;
 					try {
 						if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
 							if (AirSimClient->armDisarm(true, TCHAR_TO_UTF8(*UAVName))) {
@@ -195,6 +198,7 @@ void AGroundControlStation::Land(FString UAVName)
 		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
 				{
+					bTaskResult = false;
 					try {
 						if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
 							AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
@@ -234,6 +238,7 @@ void AGroundControlStation::Hover(FString UAVName)
 		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName]()
 				{
+					bTaskResult = false;
 					try {
 						if (AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
 							AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
@@ -300,13 +305,15 @@ void AGroundControlStation::MoveToLocation(FString UAVName, FVector Location, fl
 		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Location, Velocity, Timeout]()
 				{
+					bTaskResult = false;
 					try {
-						float TargetZ = OffsetZ - Location.Z;
+						float TargetZ = OffsetZ - Location.Z/100 - 1;
 						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
-						AirSimClient->moveToPositionAsync(Location.X, Location.Y, TargetZ, Velocity, Timeout,
+						AirSimClient->moveToPositionAsync(Location.X/100, Location.Y/100, TargetZ, Velocity, Timeout,
 							msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
 							-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
-						UE_LOG(LogTemp, Log, TEXT("Drone Moving to Location %f %f %f: %s"), Location.X, Location.Y, Location.Z, *UAVName);
+						Hover(UAVName);
+						UE_LOG(LogTemp, Log, TEXT("Drone Moving to Location %f %f %f: %s from Z = %f"), Location.X, Location.Y, Location.Z, *UAVName, OffsetZ);
 						if (bTaskResult)
 						{
 							UE_LOG(LogTemp, Log, TEXT("Drone Move to Location Successful: %s"), *UAVName);
@@ -336,6 +343,7 @@ void AGroundControlStation::MoveByPath(FString UAVName, const TArray<FVector>& P
 		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Path, Velocity, Timeout]()
 				{
+					bTaskResult = false;
 					try {
 						std::vector<msr::airlib::Vector3r> Waypoints;
 						for (FVector Point : Path)
@@ -354,6 +362,11 @@ void AGroundControlStation::MoveByPath(FString UAVName, const TArray<FVector>& P
 						{
 							UE_LOG(LogTemp, Error, TEXT("Drone Move by Path Failed: %s"), *UAVName);
 						}
+
+						/*for (const FVector& location : Path)
+						{
+							MoveToLocation(UAVName, location, Velocity, Timeout);
+						}*/
 					}
 					catch (const std::exception& e) {
 						UE_LOG(LogTemp, Error, TEXT("Move by path error: %s"), UTF8_TO_TCHAR(e.what()));
@@ -375,6 +388,7 @@ void AGroundControlStation::MoveByVelocitySameZ(FString UAVName, FVector2D Veloc
 		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, VelocityXY, Z, Timeout]()
 				{
+					bTaskResult = false;
 					try {
 						// Go to target Z first
 						//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
@@ -412,24 +426,25 @@ void AGroundControlStation::RotateByYawRate(FString UAVName, float YawRate, floa
 		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, YawRate, Duration]()
 				{
+					bTaskResult = false;
 					try {
 						// Go to target Z first
 						//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
 						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
 						// Move by velocity with same Z
 						AirSimClient->rotateByYawRateAsync(YawRate, Duration, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult);
-						UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z: %s"), *UAVName);
+						UE_LOG(LogTemp, Log, TEXT("Drone Rotate by YawRate: %s"), *UAVName);
 						if (bTaskResult)
 						{
-							UE_LOG(LogTemp, Log, TEXT("Drone Move by Velocity with same Z Successful: %s"), *UAVName);
+							UE_LOG(LogTemp, Log, TEXT("Drone Rotate by YawRate Successful: %s"), *UAVName);
 						}
 						else
 						{
-							UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed: %s"), *UAVName);
+							UE_LOG(LogTemp, Error, TEXT("Drone Rotate by YawRate Failed: %s"), *UAVName);
 						}
 					}
 					catch (const std::exception& e) {
-						UE_LOG(LogTemp, Error, TEXT("Move by velocity with same Z error: %s"), UTF8_TO_TCHAR(e.what()));
+						UE_LOG(LogTemp, Error, TEXT("Rotate by YawRate error: %s"), UTF8_TO_TCHAR(e.what()));
 					}
 				});
 		}
@@ -448,24 +463,25 @@ void AGroundControlStation::RotateToYaw(FString UAVName, float Yaw, float Margin
 		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Yaw, Margin, Timeout]()
 				{
+					bTaskResult = false;
 					try {
 						// Go to target Z first
 						//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
 						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
 						// Move by velocity with same Z
 						AirSimClient->rotateToYawAsync(Yaw, Timeout, Margin, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout * 1.5f);
-						UE_LOG(LogTemp, Log, TEXT("Drone Moving by Velocity with same Z: %s"), *UAVName);
+						UE_LOG(LogTemp, Log, TEXT("Drone Rotate to Yaw: %s"), *UAVName);
 						if (bTaskResult)
 						{
-							UE_LOG(LogTemp, Log, TEXT("Drone Move by Velocity with same Z Successful: %s"), *UAVName);
+							UE_LOG(LogTemp, Log, TEXT("Drone Rotate to Yaw Successful: %s"), *UAVName);
 						}
 						else
 						{
-							UE_LOG(LogTemp, Error, TEXT("Drone Move by Velocity with same Z Failed: %s"), *UAVName);
+							UE_LOG(LogTemp, Error, TEXT("Drone Rotate to Yaw Failed: %s"), *UAVName);
 						}
 					}
 					catch (const std::exception& e) {
-						UE_LOG(LogTemp, Error, TEXT("Move by velocity with same Z error: %s"), UTF8_TO_TCHAR(e.what()));
+						UE_LOG(LogTemp, Error, TEXT("Rotate to Yaw error: %s"), UTF8_TO_TCHAR(e.what()));
 					}
 				});
 		}
@@ -484,6 +500,7 @@ void AGroundControlStation::MoveToZ(FString UAVName, float Z, float Velocity, fl
 		if (CheckId == 1) {
 			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Z, Velocity, Timeout]()
 				{
+					bTaskResult = false;
 					try {
 						// Go to target Z first
 						//AirSimClient->moveToZAsync(Z, 1.0f, Z, msr::airlib::YawMode(), -1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Z * 2);
@@ -502,6 +519,80 @@ void AGroundControlStation::MoveToZ(FString UAVName, float Z, float Velocity, fl
 					}
 					catch (const std::exception& e) {
 						UE_LOG(LogTemp, Error, TEXT("Move by velocity with same Z error: %s"), UTF8_TO_TCHAR(e.what()));
+					}
+				});
+		}
+		}));
+}
+
+void AGroundControlStation::CircleAroundPoint(FString UAVName, FVector TargetLocation, float Radius, float Velocity, float Duration)
+{
+	if (bShuttingDown || IsEngineExitRequested() || !bIsConnected || IsGarbageCollecting())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Drone not connected!"));
+		return;
+	}
+
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, TargetLocation, Radius, Velocity, Duration](const float& CheckId) {
+		if (CheckId == 1) {
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, TargetLocation, Radius, Velocity, Duration]()
+				{
+					bTaskResult = false;
+
+					try {
+						// Ensure API control is enabled for the drone
+						if (!AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName))) {
+							UE_LOG(LogTemp, Error, TEXT("API control not enabled for drone: %s"), *UAVName);
+							return;
+						}
+
+						// Cancel any previous task
+						AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+
+						// Calculate the total time for one complete circle
+						const float CircleCircumference = 2.0f * PI * Radius;
+						const float TimeForOneCircle = CircleCircumference / Velocity;
+
+						// Determine the number of steps based on the duration
+						const int32 Steps = FMath::CeilToInt(Duration / TimeForOneCircle);
+
+						// Start the circular flight
+						float CurrentAngle = 0.0f;
+						const float AngleStep = (2.0f * PI) / Steps; // Incremental angle per step
+
+						for (int32 i = 0; i < Steps; ++i) {
+							// Calculate the current position on the circle
+							float TargetZ = OffsetZ - TargetLocation.Z / 100 - 1;
+							float X = TargetLocation.X + Radius * FMath::Cos(CurrentAngle);
+							float Y = TargetLocation.Y + Radius * FMath::Sin(CurrentAngle);
+							float Z = TargetLocation.Z; // Maintain the same altitude as the target
+
+							// Move the UAV to the calculated position
+							FVector Position(X, Y, TargetZ);
+							AirSimClient->moveToPositionAsync(
+								Position.X / 100, Position.Y / 100, Position.Z,
+								Velocity,
+								Duration / Steps+10,
+								msr::airlib::DrivetrainType::MaxDegreeOfFreedom,
+								msr::airlib::YawMode(true, 0), // Keep yaw facing the target
+								-1, 1, TCHAR_TO_UTF8(*UAVName)
+							)->waitOnLastTask(&bTaskResult, Duration / Steps+10);
+
+							// Update the angle for the next step
+							CurrentAngle += AngleStep;
+
+							// Check if the task was successful
+							if (!bTaskResult) {
+								UE_LOG(LogTemp, Error, TEXT("Circular flight failed at step %d"), i);
+								break;
+							}
+						}
+
+						UE_LOG(LogTemp, Log, TEXT("Drone Circular Flight Completed: %s"), *UAVName);
+
+					}
+					catch (const std::exception& e) {
+						UE_LOG(LogTemp, Error, TEXT("Circular flight error: %s"), UTF8_TO_TCHAR(e.what()));
 					}
 				});
 		}
@@ -782,6 +873,14 @@ void AGroundControlStation::HandleVideoFrame(const FString& UAVName, UTexture2D*
 //			});
 //	});
 //}
+
+void AGroundControlStation::SaveLogCsv(FString FilePath, TArray<FString> Data)
+{
+	FString SavePath = FilePath + FDateTime::Now().ToString() + TEXT(".csv");
+	FString DataLine = FString::Join(Data, TEXT("\n"));
+	FFileHelper::SaveStringToFile(DataLine, *SavePath);
+	UE_LOG(LogTemp, Log, TEXT("Log saved to: %s"), *SavePath);
+}
 
 // Cleanup
 AGroundControlStation::~AGroundControlStation()
