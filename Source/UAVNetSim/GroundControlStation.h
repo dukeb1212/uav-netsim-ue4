@@ -100,7 +100,7 @@ public:
 	void GetLastestVideoFrame(FString UAVName, bool IsCapture = false, FString FilePath = "");*/
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
-	void MoveToLocation(FString UAVName, FVector Location, float Velocity, float Timeout);
+	void MoveToLocation(FString UAVName, float DestinationYaw, float UAVYaw, FVector Location, float Velocity, float Timeout);
 
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void MoveByPath(FString UAVName, const TArray<FVector>& Path, float Velocity, float Timeout);

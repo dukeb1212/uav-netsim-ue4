@@ -293,7 +293,7 @@ int64 AGroundControlStation::GetLandedState(FString UAVName)
 	return state;
 }
 
-void AGroundControlStation::MoveToLocation(FString UAVName, FVector Location, float Velocity, float Timeout) 
+void AGroundControlStation::MoveToLocation(FString UAVName, float DestinationYaw, float UAVYaw, FVector Location, float Velocity, float Timeout)
 {
 	if (bShuttingDown || IsEngineExitRequested() || !bIsConnected || IsGarbageCollecting())
 	{
@@ -301,9 +301,9 @@ void AGroundControlStation::MoveToLocation(FString UAVName, FVector Location, fl
 		return;
 	}
 
-	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, Location, Velocity, Timeout](const float& CheckId) {
+	NetworkEffectManager->QueueCommandExecute(1, FDelayExecuteCallback::CreateLambda([this, UAVName, DestinationYaw, UAVYaw, Location, Velocity, Timeout](const float& CheckId) {
 		if (CheckId == 1) {
-			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, Location, Velocity, Timeout]()
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, UAVName, DestinationYaw, UAVYaw, Location, Velocity, Timeout]()
 				{
 					bTaskResult = false;
 					try {
@@ -312,7 +312,13 @@ void AGroundControlStation::MoveToLocation(FString UAVName, FVector Location, fl
 						AirSimClient->moveToPositionAsync(Location.X/100, Location.Y/100, TargetZ, Velocity, Timeout,
 							msr::airlib::DrivetrainType::MaxDegreeOfFreedom, msr::airlib::YawMode(),
 							-1, 1, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
-						Hover(UAVName);
+
+						if (UAVYaw <= DestinationYaw - 5 || UAVYaw >= DestinationYaw + 5)
+						{
+							AirSimClient->rotateToYawAsync(DestinationYaw, Timeout, 2.f, TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
+							AirSimClient->hoverAsync(TCHAR_TO_UTF8(*UAVName))->waitOnLastTask(&bTaskResult, Timeout);
+						}
+						else Hover(UAVName);
 						UE_LOG(LogTemp, Log, TEXT("Drone Moving to Location %f %f %f: %s from Z = %f"), Location.X, Location.Y, Location.Z, *UAVName, OffsetZ);
 						if (bTaskResult)
 						{
