@@ -6,7 +6,7 @@
 #include "vehicles/multirotor/api/MultirotorRpcLibClient.hpp"
 #include "PIPCamera.h"
 #include "common/common_utils/UniqueValueMap.hpp"
-#include "NetworkStateInstance.h"
+#include "Network/NetworkStateInstance.h"
 #include "Network/NetworkEffectManager.h"
 #include "Delegates/Delegate.h"
 #include "DataStruct/Telemetry.h"

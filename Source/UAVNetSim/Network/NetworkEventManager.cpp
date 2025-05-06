@@ -2,7 +2,7 @@
 
 
 #include "NetworkEventManager.h"
-#include "../NetworkStateInstance.h"
+#include "NetworkStateInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "UAVNetSim/GroundControlStation.h"
 

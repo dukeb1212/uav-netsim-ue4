@@ -39,13 +39,13 @@ struct FFlowData
     UPROPERTY(BlueprintReadOnly)
     FString DestinationIPAddress;
 
-    UPROPERTY(BlueprintReadOnly)
+    UPROPERTY(BlueprintReadWrite)
     float MeanDelay;
 
-    UPROPERTY(BlueprintReadOnly)
+    UPROPERTY(BlueprintReadWrite)
     float MeanJitter;
 
-    UPROPERTY(BlueprintReadOnly)
+    UPROPERTY(BlueprintReadWrite)
     float PacketLossL3;
 
     UPROPERTY(BlueprintReadOnly)

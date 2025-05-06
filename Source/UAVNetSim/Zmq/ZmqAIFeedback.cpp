@@ -25,7 +25,7 @@ void AZmqAIFeedback::BeginPlay()
 
 void AZmqAIFeedback::HandleAIFeedback(const FString& Topic, const FString& Message)
 {
-    UE_LOG(LogTemp, Log, TEXT("[ZmqAIFeedback] Received on topic '%s': %s"), *Topic, *Message);
+    //UE_LOG(LogTemp, Log, TEXT("[ZmqAIFeedback] Received on topic '%s': %s"), *Topic, *Message);
 
     TSharedPtr<FJsonObject> JsonObject;
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Message);
@@ -36,7 +36,7 @@ void AZmqAIFeedback::HandleAIFeedback(const FString& Topic, const FString& Messa
         FString ClassLabel = JsonObject->GetStringField("c");
         float ClassConfidence = JsonObject->GetNumberField("pc");
 
-        UE_LOG(LogTemp, Log, TEXT("ResNet8 → Class: %s (Confidence: %.3f)"), *ClassLabel, ClassConfidence);
+        //UE_LOG(LogTemp, Log, TEXT("ResNet8 → Class: %s (Confidence: %.3f)"), *ClassLabel, ClassConfidence);
 
         /*if (OnFeedbackReceived.IsBound())
         {
@@ -62,8 +62,8 @@ void AZmqAIFeedback::HandleAIFeedback(const FString& Topic, const FString& Messa
                         float X2 = (float)(*BArray)[2]->AsNumber();
                         float Y2 = (float)(*BArray)[3]->AsNumber();
 
-                        UE_LOG(LogTemp, Log, TEXT("YOLO → Person at (%.0f, %.0f, %.0f, %.0f), Confidence: %.2f"),
-                            X1, Y1, X2, Y2, Confidence);
+                        //UE_LOG(LogTemp, Log, TEXT("YOLO → Person at (%.0f, %.0f, %.0f, %.0f), Confidence: %.2f"),
+                        //    X1, Y1, X2, Y2, Confidence);
 
                         FDetectedBox Box;
 						Box.TopLeft = FVector2D(X1, Y1);

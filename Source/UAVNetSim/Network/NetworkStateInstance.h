@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
-#include "Zmq/ZmqSubscriber.h"
-#include "DataStruct/Flow.h"
+#include "UAVNetSim/Zmq/ZmqSubscriber.h"
+#include "UAVNetSim/DataStruct/Flow.h"
 #include "NetworkStateInstance.generated.h"
 
 
@@ -22,12 +22,16 @@ public:
 
     UFUNCTION()
     void HandleMessage(const FString& Topic, const FString& Message);
-
+    
+    UFUNCTION(BlueprintCallable, Category = "Flow Control")
     const TMap<int32, FFlowData>& GetFlowDataMap() const { return FlowDataMap; }
 
     FFlowData* GetFlowDataById(int32 FlowId);
+
+    UFUNCTION(BlueprintCallable, Category = "Flow Control")
     void InsertOrAssign(int32 FlowId, FFlowData FlowData);
 
+    UFUNCTION(BlueprintCallable, Category = "Flow Control")
     bool ContainsFlowId(int32 FlowId);
 
 private:
