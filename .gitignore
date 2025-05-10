@@ -71,6 +71,8 @@ Intermediate/*
 Plugins/**/Intermediate/*
 Plugins/AirSim/*
 
+Content/EuropeanHornbeam/Textures/*
+
 # Cache files for the editor to use
 DerivedDataCache/*
 
