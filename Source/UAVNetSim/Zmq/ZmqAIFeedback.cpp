@@ -62,8 +62,8 @@ void AZmqAIFeedback::HandleAIFeedback(const FString& Topic, const FString& Messa
                         float X2 = (float)(*BArray)[2]->AsNumber();
                         float Y2 = (float)(*BArray)[3]->AsNumber();
 
-                        //UE_LOG(LogTemp, Log, TEXT("YOLO → Person at (%.0f, %.0f, %.0f, %.0f), Confidence: %.2f"),
-                        //    X1, Y1, X2, Y2, Confidence);
+                        UE_LOG(LogTemp, Log, TEXT("YOLO → Person at (%.0f, %.0f, %.0f, %.0f), Confidence: %.2f"),
+                            X1, Y1, X2, Y2, Confidence);
 
                         FDetectedBox Box;
 						Box.TopLeft = FVector2D(X1, Y1);

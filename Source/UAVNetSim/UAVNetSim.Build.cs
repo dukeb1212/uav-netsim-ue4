@@ -12,9 +12,9 @@ public class UAVNetSim : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json", "JsonUtilities", "AirSim", "Landscape", "ImageWrapper", "CinematicCamera", "RenderCore", "RHI", "AssetRegistry", "PhysicsCore", "PhysXVehicles", "PhysXVehicleLib", "PhysX", "APEX", });
 
-        string EnvFilePath = Path.Combine(ModuleDirectory, "..", "..", ".env");
+        string EnvFilePath = Path.Combine(ModuleDirectory, "..", ".env");
 
-        string VcpkgRootPath = "E:/UnrealProjects/UAVNetSim/vcpkg_installed";
+        string VcpkgRootPath = "D:/UAVNetSim/vcpkg_installed";
 
         if (File.Exists(EnvFilePath))
         {

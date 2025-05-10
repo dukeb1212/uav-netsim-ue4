@@ -22,11 +22,6 @@ void UNetworkEffectManager::Deinitialize()
 	Super::Deinitialize();
 }
 
-//void UNetworkEffectManager::SetNetworkParameters(float Delay)
-//{
-//	CurrentDelay = FMath::Max(Delay, 0.0f);
-//}
-
 void UNetworkEffectManager::QueueTelemetryUpdate(const FTelemetryData& TelemetryData, int32 FlowId, FDelayedTelemetryCallback Callback)
 {
 	float Delay = 0.0f;
@@ -42,102 +37,6 @@ void UNetworkEffectManager::QueueTelemetryUpdate(const FTelemetryData& Telemetry
 	FMath::FRandRange(0.0f, 1.0f) < PacketLossRate ? NewItem.bCanSkip = true : NewItem.bCanSkip = false;
 	NewItem.Callback = Callback;
 	TelemetryQueue.Add(NewItem);
-}
-
-void UNetworkEffectManager::QueueDelayedTexture(UTexture2D* SourceTexture, int32 FlowId, const FOnTextureProcessed& Callback)
-{
-	if (!SourceTexture || !SourceTexture->GetResource())
-	{
-		UE_LOG(LogNetworkEffect, Warning, TEXT("SourceTexture is invalid or has no resource."));
-		return;
-	}
-
-	// Simulate network effects
-	float Delay = 0.0f;
-	bool bCanSkip = false;
-
-	if (NetworkStateInstance && NetworkStateInstance->ContainsFlowId(FlowId))
-	{
-		const FFlowData& FlowData = *NetworkStateInstance->GetFlowDataById(FlowId);
-		Delay = CalculateDelay(FlowData.MeanDelay, FlowData.MeanJitter);
-		bCanSkip = (FMath::FRandRange(0.0f, 1.0f) < CalculatePacketLossRate(FlowData.PacketLossL3, FlowData.TxPackets));
-	}
-
-	// Create a new transient texture to store the delayed frame
-	UTexture2D* NewFrameTexture = UTexture2D::CreateTransient(
-		SourceTexture->GetSizeX(),
-		SourceTexture->GetSizeY(),
-		SourceTexture->GetPixelFormat()
-	);
-	if (!NewFrameTexture)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create transient texture for delayed frame."));
-		return;
-	}
-
-	NewFrameTexture->SRGB = SourceTexture->SRGB;
-	NewFrameTexture->MipGenSettings = TMGS_NoMipmaps;
-	NewFrameTexture->UpdateResource();
-
-	// Ensure texture is valid before copying
-	NewFrameTexture->AddToRoot();
-
-	ENQUEUE_RENDER_COMMAND(CopyTextureCmd)([SourceTexture, NewFrameTexture, Delay, bCanSkip, Callback, this](FRHICommandListImmediate& RHICmdList)
-		{
-			// Get source and destination RHI
-			FTextureResource* SourceRes = SourceTexture->GetResource();
-			FTextureResource* DestRes = NewFrameTexture->GetResource();
-			if (!SourceRes || !DestRes)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Failed to get RHI for texture copy."));
-				return;
-			}
-
-			// Get RHI references
-			FTexture2DRHIRef SourceRHI = SourceRes->GetTexture2DRHI();
-			FTexture2DRHIRef DestRHI = DestRes->GetTexture2DRHI();
-			if (!SourceRHI.IsValid() || !DestRHI.IsValid())
-			{
-				UE_LOG(LogTemp, Error, TEXT("Invalid RHI for texture copy."));
-				return;
-			}
-
-			// Get dimensions
-			const int32 Width = SourceTexture->GetSizeX();
-			const int32 Height = SourceTexture->GetSizeY();
-
-			// Step 1: Read source texture to CPU buffer
-			TArray<FColor> PixelBuffer;
-			FIntRect Rect(0, 0, Width, Height);
-			FUpdateTextureRegion2D Region(0, 0, 0, 0, Width, Height);
-			FReadSurfaceDataFlags Flags(RCM_UNorm, CubeFace_MAX);
-			RHICmdList.ReadSurfaceData(SourceRHI, Rect, PixelBuffer, Flags);
-
-			// Step 2: Upload buffer to new texture
-			if (PixelBuffer.Num() == Width * Height)
-			{
-				uint32 SrcPitch = Width * sizeof(FColor);
-				RHIUpdateTexture2D(
-					DestRHI,
-					0,
-					Region,
-					SrcPitch,
-					reinterpret_cast<uint8*>(PixelBuffer.GetData())
-				);
-			}
-
-			// Schedule frame in game thread
-			AsyncTask(ENamedThreads::GameThread, [this, NewFrameTexture, Delay, bCanSkip, Callback]()
-				{
-					FDelayedFrame NewFrame;
-					NewFrame.Texture = NewFrameTexture;
-					NewFrame.RemainingDelay = Delay;
-					NewFrame.bCanSkip = bCanSkip;
-					NewFrame.Callback = Callback;
-
-					FrameQueue.Add(NewFrame);
-				});
-		});
 }
 
 
@@ -156,6 +55,48 @@ void UNetworkEffectManager::QueueCommandExecute(const int32& FlowId, FDelayExecu
 	FMath::FRandRange(0.0f, 1.0f) < PacketLossRate ? NewItem.bCanSkip = true : NewItem.bCanSkip = false;
 	NewItem.Callback = Callback;
 	CommandQueue.Add(NewItem);
+}
+
+void UNetworkEffectManager::QueueDelayedRenderTarget(UTextureRenderTarget2D* SourceRenderTarget, int32 FlowId, const FOnRenderTargetProcessed& Callback)
+{
+	if (!SourceRenderTarget)
+	{
+		UE_LOG(LogNetworkEffect, Warning, TEXT("SourceRenderTarget is invalid."));
+		return;
+	}
+
+	float Delay = 0.0f;
+	bool bCanSkip = false;
+	if (NetworkStateInstance && NetworkStateInstance->ContainsFlowId(FlowId))
+	{
+		const FFlowData& FlowData = *NetworkStateInstance->GetFlowDataById(FlowId);
+		Delay = CalculateDelay(FlowData.MeanDelay, FlowData.MeanJitter);
+		bCanSkip = (FMath::FRandRange(0.0f, 1.0f) < CalculatePacketLossRate(FlowData.PacketLossL3, FlowData.TxPackets));
+	}
+
+	// Create or reuse a GPU render target for delayed frame
+	UTextureRenderTarget2D* DelayedTarget = DuplicateObject(SourceRenderTarget, this);
+	DelayedTarget->ClearColor = FLinearColor::Black;
+	DelayedTarget->UpdateResourceImmediate(true);
+
+	ENQUEUE_RENDER_COMMAND(CopyRenderTargetCmd)([SourceRenderTarget, DelayedTarget](FRHICommandListImmediate& RHICmdList)
+		{
+			FRHITexture2D* Src = SourceRenderTarget->GetRenderTargetResource()->GetRenderTargetTexture();
+			FRHITexture2D* Dst = DelayedTarget->GetRenderTargetResource()->GetRenderTargetTexture();
+			if (Src && Dst)
+			{
+				FRHICopyTextureInfo CopyInfo;
+				RHICmdList.CopyTexture(Src, Dst, CopyInfo);
+			}
+		});
+
+	// Add to delay queue (game thread)
+	FDelayedRenderTargetFrame Frame;
+	Frame.RenderTarget = DelayedTarget;
+	Frame.RemainingDelay = Delay;
+	Frame.bCanSkip = bCanSkip;
+	Frame.Callback = Callback;
+	RenderTargetQueue.Add(Frame);
 }
 
 float UNetworkEffectManager::CalculateDelay(float MeanDelay, float MeanJitter)
@@ -200,28 +141,17 @@ bool UNetworkEffectManager::Tick(float DeltaTime)
 		}
 	}
 
-	// Process Frame Queue
-	for (int32 i = FrameQueue.Num() - 1; i >= 0; --i)
+	for (int32 i = RenderTargetQueue.Num() - 1; i >= 0; --i)
 	{
-		FDelayedFrame& Frame = FrameQueue[i];
-
-		UE_LOG(LogNetworkEffect, Verbose, TEXT("Processing Frame | RemainingDelay: %.2f"), Frame.RemainingDelay);
-
+		FDelayedRenderTargetFrame& Frame = RenderTargetQueue[i];
 		Frame.RemainingDelay -= DeltaTime;
-
-		if (Frame.RemainingDelay <= 0)
+		if (Frame.RemainingDelay <= 0.0f)
 		{
-			if (Frame.bCanSkip)
+			if (!Frame.bCanSkip)
 			{
-				UE_LOG(LogNetworkEffect, Log, TEXT("Skipping Frame | Packet Loss"));
+				Frame.Callback.Broadcast(Frame.RenderTarget);
 			}
-			else if (Frame.Callback.IsBound())
-			{
-				UE_LOG(LogNetworkEffect, Log, TEXT("Displaying Frame | Texture: %p"), Frame.Texture);
-				Frame.Callback.Broadcast(Frame.Texture);
-			}
-
-			FrameQueue.RemoveAt(i);
+			RenderTargetQueue.RemoveAt(i);
 		}
 	}
 

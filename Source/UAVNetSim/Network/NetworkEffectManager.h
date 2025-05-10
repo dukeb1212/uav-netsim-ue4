@@ -16,7 +16,7 @@
 
 DECLARE_DELEGATE_OneParam(FDelayedTelemetryCallback, const FTelemetryData&);
 DECLARE_DELEGATE_OneParam(FDelayExecuteCallback, const float&);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTextureProcessed, UTexture2D*, Texture);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRenderTargetProcessed, UTextureRenderTarget2D*, RenderTarget);
 /**
  * 
  */
@@ -41,12 +41,16 @@ struct FDelayExecute {
 };
 
 USTRUCT()
-struct FDelayedFrame {
+struct FDelayedRenderTargetFrame
+{
 	GENERATED_BODY()
-	UTexture2D* Texture;
+
+	UPROPERTY()
+	UTextureRenderTarget2D* RenderTarget;
+
 	float RemainingDelay;
 	bool bCanSkip;
-	FOnTextureProcessed Callback;
+	FOnRenderTargetProcessed Callback;
 };
 
 UCLASS()
@@ -64,9 +68,9 @@ public:
 
 	void QueueTelemetryUpdate(const FTelemetryData& TelemetryData, int32 FlowId, FDelayedTelemetryCallback Callback);
 
-	void QueueDelayedTexture(UTexture2D* SourceTexture, int32 FlowId, const FOnTextureProcessed& Callback);
-
 	void QueueCommandExecute(const int32& FlowId, FDelayExecuteCallback Callback);
+
+	void QueueDelayedRenderTarget(UTextureRenderTarget2D* SourceRenderTarget, int32 FlowId, const FOnRenderTargetProcessed& Callback);
 
 	float CalculateDelay(float MeanDelay, float MeanJitter);
 
@@ -85,8 +89,8 @@ private:
 	FDelegateHandle TickDelegateHandle;
 
 	TArray<FDelayedTelemetry> TelemetryQueue;
-	
-	TArray<FDelayedFrame> FrameQueue;
+
+	TArray<FDelayedRenderTargetFrame> RenderTargetQueue;
 
 	TArray<FDelayExecute> CommandQueue;
 
