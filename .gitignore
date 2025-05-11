@@ -24,6 +24,10 @@
 *.la
 *.a
 *.lib
+!Plugins/AirSim/Source/AirLib/deps/**/*.lib
+!Plugins/AirSim/Source/AirLib/lib/**/*.lib
+
+
 
 # Executables
 *.exe
