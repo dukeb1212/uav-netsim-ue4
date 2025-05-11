@@ -22,17 +22,19 @@ AGroundControlStation::AGroundControlStation()
 		AllLandedStates.Add(UAVName, msr::airlib::LandedState::Landed);
 	}
 
+	ZMQRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("ZMQRootComponent"));
+
 	Ns3SubscriberComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("Ns3SubscriberComponent"));
-	Ns3SubscriberComponent->SetChildActorClass(AZmqSubscriber::StaticClass());
+	Ns3SubscriberComponent->SetupAttachment(ZMQRootComponent);
 
 	Ns3PublisherComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("Ns3PublisherComponent"));
-	Ns3PublisherComponent->SetChildActorClass(AZmqPublisher::StaticClass());
+	Ns3PublisherComponent->SetupAttachment(ZMQRootComponent);
 
 	AISubscriberComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("AISubscriberComponent"));
-	AISubscriberComponent->SetChildActorClass(AZmqAIFeedback::StaticClass());
+	AISubscriberComponent->SetupAttachment(ZMQRootComponent);
 
 	AIPublisherComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("AIPublisherComponent"));
-	AIPublisherComponent->SetChildActorClass(AZmqPublisher::StaticClass());
+	AIPublisherComponent->SetupAttachment(ZMQRootComponent);
 }
 
 // Called when the game starts or when spawned
@@ -47,6 +49,11 @@ void AGroundControlStation::BeginPlay()
 		UE_LOG(LogTemp, Error, TEXT("No Network Component Found!"));
 
 	NetworkStateInstance = Cast<UNetworkStateInstance>(GetGameInstance());
+
+	Ns3SubscriberComponent->SetChildActorClass(AZmqSubscriber::StaticClass());
+	Ns3PublisherComponent->SetChildActorClass(AZmqPublisher::StaticClass());
+	AISubscriberComponent->SetChildActorClass(AZmqAIFeedback::StaticClass());
+	AIPublisherComponent->SetChildActorClass(AZmqPublisher::StaticClass());
 	
 	GetWorldTimerManager().SetTimer(ConnectionCheckTimer, this, &AGroundControlStation::CheckConnection, 1.0f, true);
 	// Confirm connection with AirSim

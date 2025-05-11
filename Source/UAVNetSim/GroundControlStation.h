@@ -64,6 +64,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZMQ", meta = (AllowPrivateAccess = "true"))
 	UChildActorComponent* AIPublisherComponent;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ZMQ")
+	USceneComponent* ZMQRootComponent;
+
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
