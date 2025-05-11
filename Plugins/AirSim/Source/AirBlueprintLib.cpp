@@ -297,27 +297,6 @@ float UAirBlueprintLib::GetWorldToMetersScale(const AActor* context)
     return w2m;
 }
 
-template <typename T>
-T* UAirBlueprintLib::GetActorComponent(AActor* actor, FString name)
-{
-    TArray<T*> components;
-    actor->GetComponents(components);
-    T* found = nullptr;
-    for (T* component : components) {
-        if (component->GetName().Compare(name) == 0) {
-            found = component;
-            break;
-        }
-    }
-    return found;
-}
-template UChildActorComponent* UAirBlueprintLib::GetActorComponent(AActor*, FString);
-template USceneCaptureComponent2D* UAirBlueprintLib::GetActorComponent(AActor*, FString);
-template UStaticMeshComponent* UAirBlueprintLib::GetActorComponent(AActor*, FString);
-template URotatingMovementComponent* UAirBlueprintLib::GetActorComponent(AActor*, FString);
-template UCameraComponent* UAirBlueprintLib::GetActorComponent(AActor*, FString);
-template UDetectionComponent* UAirBlueprintLib::GetActorComponent(AActor*, FString);
-
 bool UAirBlueprintLib::IsInGameThread()
 {
     return ::IsInGameThread();
@@ -331,25 +310,6 @@ void UAirBlueprintLib::RunCommandOnGameThread(TFunction<void()> InFunction, bool
         FGraphEventRef task = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(InFunction), InStatId, nullptr, ENamedThreads::GameThread);
         if (wait)
             FTaskGraphInterface::Get().WaitUntilTaskCompletes(task);
-    }
-}
-
-template <>
-std::string UAirBlueprintLib::GetMeshName<USkinnedMeshComponent>(USkinnedMeshComponent* mesh)
-{
-    switch (mesh_naming_method_) {
-    case msr::airlib::AirSimSettings::SegmentationSetting::MeshNamingMethodType::OwnerName:
-        if (mesh->GetOwner())
-            return std::string(TCHAR_TO_UTF8(*(mesh->GetOwner()->GetName())));
-        else
-            return ""; // std::string(TCHAR_TO_UTF8(*(UKismetSystemLibrary::GetDisplayName(mesh))));
-    case msr::airlib::AirSimSettings::SegmentationSetting::MeshNamingMethodType::StaticMeshName:
-        if (mesh->SkeletalMesh)
-            return std::string(TCHAR_TO_UTF8(*(mesh->SkeletalMesh->GetName())));
-        else
-            return "";
-    default:
-        return "";
     }
 }
 

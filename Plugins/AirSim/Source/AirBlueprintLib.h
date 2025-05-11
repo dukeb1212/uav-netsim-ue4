@@ -49,8 +49,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Utils")
     static void LogMessage(const FString& prefix, const FString& suffix, LogDebugLevel level, float persist_sec = 60);
     static float GetWorldToMetersScale(const AActor* context);
-    template <typename T>
-    static T* GetActorComponent(AActor* actor, FString name);
+
 
     template <typename T>
     static T* FindActor(const UObject* context, FString name)
@@ -188,6 +187,38 @@ public:
     static void CompressImageArray(int32 width, int32 height, const TArray<FColor>& src, TArray<uint8>& dest);
     static std::vector<msr::airlib::MeshPositionVertexBuffersResponse> GetStaticMeshComponents();
 
+    template <typename T>
+    static T* GetActorComponent(AActor* actor, FString name)
+    {
+        TArray<T*> components;
+        actor->GetComponents(components);
+        for (T* component : components) {
+            if (component->GetName().Compare(name) == 0) {
+                return component;
+            }
+        }
+        return nullptr;
+    }
+
+    template <>
+    inline static std::string GetMeshName<USkinnedMeshComponent>(USkinnedMeshComponent* mesh)
+    {
+        switch (mesh_naming_method_) {
+        case msr::airlib::AirSimSettings::SegmentationSetting::MeshNamingMethodType::OwnerName:
+            if (mesh->GetOwner())
+                return std::string(TCHAR_TO_UTF8(*(mesh->GetOwner()->GetName())));
+            else
+                return "";
+        case msr::airlib::AirSimSettings::SegmentationSetting::MeshNamingMethodType::StaticMeshName:
+            if (mesh->SkeletalMesh)
+                return std::string(TCHAR_TO_UTF8(*(mesh->SkeletalMesh->GetName())));
+            else
+                return "";
+        default:
+            return "";
+        }
+    }
+
 private:
     template <typename T>
     static void InitializeObjectStencilID(T* mesh, bool override_existing = true)
@@ -284,6 +315,8 @@ private:
     }
 
     static bool CompressUsingImageWrapper(const TArray<uint8>& uncompressed, const int32 width, const int32 height, TArray<uint8>& compressed);
+
+    
 
 private:
     static bool log_messages_hidden_;

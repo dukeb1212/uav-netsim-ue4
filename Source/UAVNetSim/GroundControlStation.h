@@ -128,6 +128,9 @@ public:
 
 	void HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture);
 
+	UFUNCTION(BlueprintCallable, Category = "Debug")
+	static void ClearDebugMessages();
+
 
 private:
 	// AirSim client

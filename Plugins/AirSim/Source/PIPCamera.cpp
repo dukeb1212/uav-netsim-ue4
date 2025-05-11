@@ -1020,7 +1020,6 @@ UTexture2D* APIPCamera::RenderTargetToTexture2D(UTextureRenderTarget2D* RenderTa
     }
 
     Result->SRGB = RenderTarget->SRGB;
-    Result->MipGenSettings = TMGS_NoMipmaps;
     Result->AddToRoot();
     Result->UpdateResource();
 

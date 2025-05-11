@@ -30,15 +30,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ZMQ")
 	void StartListening();
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	UFUNCTION(BlueprintCallable, Category = "ZMQ")
+	bool IsValidTcpAddress(const FString& Address);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ZMQ Settings")
 	FString ConnectionAddress = "tcp://localhost:5555";
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ZMQ Settings")
 	FString DefaultTopic = "network";
+
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
 
 public:	
 	// Called every frame

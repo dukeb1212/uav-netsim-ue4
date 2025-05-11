@@ -836,6 +836,14 @@ void AGroundControlStation::HandleVideoFrame(const FString& UAVName, UTexture2D*
 	//OnVideoFrameReceived.Broadcast(UAVName, VideoTexture);
 }
 
+void AGroundControlStation::ClearDebugMessages()
+{
+	if (GEngine)
+	{
+		GEngine->ClearOnScreenDebugMessages();
+	}
+}
+
 
 // ==================================== NETWORK SIMULATION FUNCTIONS ====================================
 

@@ -86,6 +86,13 @@ void AZmqSubscriber::StartListening()
     SubscriberThread.detach();
 }
 
+bool AZmqSubscriber::IsValidTcpAddress(const FString& Address)
+{
+    const FRegexPattern Pattern(TEXT("^tcp:\\/\\/((25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)(\\.(?!$)|$)){4}:\\d{1,5}$"));
+    FRegexMatcher Matcher(Pattern, Address);
+    return Matcher.FindNext();
+}
+
 
 void AZmqSubscriber::StartZmqSubscribe()
 {
