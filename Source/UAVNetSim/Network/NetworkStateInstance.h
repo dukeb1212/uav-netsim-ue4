@@ -34,6 +34,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Flow Control")
     bool ContainsFlowId(int32 FlowId);
 
+	UFUNCTION(BlueprintCallable, Category = "Flow Control")
+	void ResetFlowDataMap();
+
 private:
     TMap<int32, FFlowData> FlowDataMap;
     AZmqSubscriber* ZmqSubscriberInstance = nullptr;

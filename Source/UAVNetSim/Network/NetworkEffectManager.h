@@ -79,6 +79,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Network Effect")
 	UTexture2D* GetDelayedFrameTexture() const { return DelayedFrameTexture; }
 
+	UFUNCTION(BlueprintCallable, Category = "Network Effect")
+	void ClearAllQueues();
+
 
 private:
 	UPROPERTY()

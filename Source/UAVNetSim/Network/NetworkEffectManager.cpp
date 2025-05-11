@@ -109,6 +109,13 @@ float UNetworkEffectManager::CalculatePacketLossRate(float PacketLoss, float TxP
 	return PacketLoss / FMath::Max(TxPackets, 1.0f);
 }
 
+void UNetworkEffectManager::ClearAllQueues()
+{
+	TelemetryQueue.Empty();
+	CommandQueue.Empty();
+	RenderTargetQueue.Empty();
+}
+
 bool UNetworkEffectManager::Tick(float DeltaTime)
 {
 	// Process Command Queue

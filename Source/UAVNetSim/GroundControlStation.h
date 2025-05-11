@@ -123,6 +123,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Drone Control")
 	void SaveLogCsv(FString FilePath, TArray<FString> Data);
 
+	UFUNCTION(BlueprintCallable, Category = "Drone Control")
+	void RestartLevel();
+
 	void HandleVideoFrame(const FString& UAVName, UTexture2D* VideoTexture);
 
 
@@ -137,6 +140,8 @@ private:
 	bool bShuttingDown = false;
 
 	UNetworkEffectManager* NetworkEffectManager;
+
+	UNetworkStateInstance* NetworkStateInstance;
 
 	//void SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction);
 

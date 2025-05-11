@@ -45,6 +45,8 @@ void AGroundControlStation::BeginPlay()
 
 	if (!NetworkEffectManager)
 		UE_LOG(LogTemp, Error, TEXT("No Network Component Found!"));
+
+	NetworkStateInstance = Cast<UNetworkStateInstance>(GetGameInstance());
 	
 	GetWorldTimerManager().SetTimer(ConnectionCheckTimer, this, &AGroundControlStation::CheckConnection, 1.0f, true);
 	// Confirm connection with AirSim
@@ -888,6 +890,18 @@ void AGroundControlStation::SaveLogCsv(FString FilePath, TArray<FString> Data)
 	UE_LOG(LogTemp, Log, TEXT("Log saved to: %s"), *SavePath);
 }
 
+void AGroundControlStation::RestartLevel()
+{
+	for (FString UAVName : ListUAVName)
+	{
+		AirSimClient->cancelLastTask(TCHAR_TO_UTF8(*UAVName));
+	}
+	NetworkEffectManager->ClearAllQueues();
+	NetworkStateInstance->ResetFlowDataMap();
+	EndPlay(EEndPlayReason::LevelTransition);
+	UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()), false);
+}
+
 // Cleanup
 AGroundControlStation::~AGroundControlStation()
 {
@@ -902,6 +916,9 @@ void AGroundControlStation::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 		AirSimClient = nullptr;
 	}
+	AllLandedStates.Empty();
+	ListUAVName.Empty();
+	ListTelemetryData.Empty();
 
 	Super::EndPlay(EndPlayReason);
 }
