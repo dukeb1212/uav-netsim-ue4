@@ -49,12 +49,17 @@ void AZmqSubscriber::StartListening()
     SubscriberThread = std::thread([this]() {
         while (bRunning)
         {
-            // Lock to avoid changing context and socket
-            FScopeLock Lock(&ZmqMutex);
+            zmq::message_t receivedMessage;
 
             try {
-                zmq::message_t receivedMessage;
-                Socket.recv(receivedMessage, zmq::recv_flags::none);
+                // Lock to avoid changing context and socket
+                FScopeLock Lock(&ZmqMutex);
+
+                zmq::recv_result_t result = Socket.recv(receivedMessage, zmq::recv_flags::dontwait);
+                if (!result) {
+                    FPlatformProcess::Sleep(0.01f); // avoid busy loop
+                    continue;
+                }
                 
                 // Parse zmq message to string
                 std::string receivedStr(static_cast<char*>(receivedMessage.data()), receivedMessage.size());
@@ -93,6 +98,22 @@ bool AZmqSubscriber::IsValidTcpAddress(const FString& Address)
     return Matcher.FindNext();
 }
 
+void AZmqSubscriber::ChangeAddress(const FString& NewAddress)
+{
+    FScopeLock Lock(&ZmqMutex);
+    bRunning = false; // Signal thread to stop
+    Socket.close();
+
+    if (SubscriberThread.joinable())
+    {
+        SubscriberThread.join();
+    }
+
+    Socket = zmq::socket_t(Context, ZMQ_SUB);
+
+    RebindZmqSubscriber(NewAddress);
+}
+
 
 void AZmqSubscriber::StartZmqSubscribe()
 {
@@ -105,7 +126,17 @@ void AZmqSubscriber::StartZmqSubscribe()
     }
     catch (const zmq::error_t& e) {
         UE_LOG(LogTemp, Error, TEXT("ZMQ subscriber connect failed: %s"), UTF8_TO_TCHAR(e.what()));
+		// Retry connection
+		FTimerHandle RetryHandle;
+		GetWorldTimerManager().SetTimer(RetryHandle, this, &AZmqSubscriber::StartZmqSubscribe, 1.0f, false);
     }
+}
+
+void AZmqSubscriber::RebindZmqSubscriber(const FString& NewAddress)
+{
+    ConnectionAddress = NewAddress;
+    StartZmqSubscribe();
+    StartListening();
 }
 
 
