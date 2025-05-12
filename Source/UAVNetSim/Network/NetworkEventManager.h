@@ -11,7 +11,6 @@
 /**
  * 
  */
-class AGroundControlStation;
 
 UCLASS()
 class UAVNETSIM_API UNetworkEventManager : public UGameInstanceSubsystem
@@ -47,12 +46,7 @@ private:
 
 // Methods
 private:
-	AGroundControlStation* GroundControlStation;
-
     void OnFlowDataUpdated(int32 Ns3FlowId, ENetworkAppType AppType);
 
     void BindToZmqPublisher(const UWorld::FActorsInitializedParams& Params);
-
-    UFUNCTION()
-    void OnZmqPublisherReady(bool IsReady);
 };

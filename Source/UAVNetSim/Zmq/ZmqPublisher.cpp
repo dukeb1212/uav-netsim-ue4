@@ -32,11 +32,6 @@ void AZmqPublisher::Tick(float DeltaTime)
 
 }
 
-void AZmqPublisher::ChangeAddress(const FString& NewAddress)
-{
-	RebindZmq(NewAddress);
-}
-
 void AZmqPublisher::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	SafeShutdown();
@@ -57,36 +52,7 @@ void AZmqPublisher::InitializeZmq()
 	}
 	catch (const zmq::error_t& e) {
 		UE_LOG(LogTemp, Error, TEXT("ZMQ bind failed: %s"), UTF8_TO_TCHAR(e.what()));
-
-		FTimerHandle RetryHandle;
-		GetWorldTimerManager().SetTimer(RetryHandle, this, &AZmqPublisher::InitializeZmq, 1.0f, false);
 	}
-}
-
-void AZmqPublisher::RebindZmq(const FString& NewAddress)
-{
-    FScopeLock Lock(&ZmqMutex);
-
-    try {
-        // Close existing socket if already bound
-        if (Socket.handle()) {
-            Socket.close();
-        }
-
-        // Update the address
-        ConnectionAddress = NewAddress;
-
-        // Recreate and bind socket
-        Socket = zmq::socket_t(Context, zmq::socket_type::pub);
-        Socket.setsockopt(ZMQ_LINGER, 0);  // Optional: avoid blocking on close
-        Socket.bind(TCHAR_TO_UTF8(*ConnectionAddress));
-
-        UE_LOG(LogTemp, Log, TEXT("ZMQ publisher rebound to %s"), *ConnectionAddress);
-        GetWorldTimerManager().ClearAllTimersForObject(this);
-    }
-    catch (const zmq::error_t& e) {
-        UE_LOG(LogTemp, Error, TEXT("ZMQ rebind failed: %s"), UTF8_TO_TCHAR(e.what()));
-    }
 }
 
 void AZmqPublisher::SafeShutdown()

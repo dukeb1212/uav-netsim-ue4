@@ -59,32 +59,6 @@ void AGroundControlStation::BeginPlay()
 	// Confirm connection with AirSim
 	/*AirSimClient->confirmConnection();
 	*/
-
-	FTimerHandle TimerHandle;
-	GetWorldTimerManager().SetTimer(TimerHandle, this, &AGroundControlStation::NotifyZmqPublisherReady, 0.1f, false);
-}
-
-
-void AGroundControlStation::NotifyZmqPublisherReady()
-{
-	if (Ns3PublisherComponent && Ns3PublisherComponent->GetChildActor() && Ns3SubscriberComponent && Ns3SubscriberComponent->GetChildActor()
-		&& AIPublisherComponent && AIPublisherComponent->GetChildActor() && AISubscriberComponent && AISubscriberComponent->GetChildActor())
-	{
-		UE_LOG(LogTemp, Log, TEXT("ZMQ Child Actor is ready."));
-		OnZmqComponentReady.Broadcast(true);
-
-		AZmqPublisher* AIPublisher = Cast<AZmqPublisher>(AIPublisherComponent->GetChildActor());
-		AIPublisher->ChangeAddress("tcp://*:5557");
-		AZmqAIFeedback* AIFeedback = Cast<AZmqAIFeedback>(AISubscriberComponent->GetChildActor());
-		AIFeedback->ChangeAddress("tcp://localhost:557");
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ZMQ Child Actor not yet available. Retrying..."));
-		// Retry until available
-		FTimerHandle RetryHandle;
-		GetWorldTimerManager().SetTimer(RetryHandle, this, &AGroundControlStation::NotifyZmqPublisherReady, 0.1f, false);
-	}
 }
 
 // Called every frame

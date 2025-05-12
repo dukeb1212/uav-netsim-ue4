@@ -30,10 +30,7 @@ public:
     // Configuration properties
 
     // Publish address
-    UFUNCTION(BlueprintCallable, Category = "ZMQ")
-    void ChangeAddress(const FString& NewAddress);
-
-    UPROPERTY(BlueprintReadOnly, Category = "ZMQ Settings")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ZMQ Settings")
     FString ConnectionAddress = "tcp://*:5555";
 
     // Publish every x second
@@ -99,6 +96,4 @@ private:
     // Start ZMQ
     void InitializeZmq();
     void SafeShutdown();
-
-    void RebindZmq(const FString& NewAddress);
 };

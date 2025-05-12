@@ -17,8 +17,6 @@
 
 #include "GroundControlStation.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnZmqComponentReady, bool, IsReady);
-
 UCLASS()
 class UAVNETSIM_API AGroundControlStation : public APawn
 {
@@ -44,9 +42,6 @@ public:
 	bool bTaskResult;
 
 	TMap<FString, msr::airlib::LandedState> AllLandedStates;
-
-	UPROPERTY(BlueprintAssignable, Category = "Events")
-	FOnZmqComponentReady OnZmqComponentReady;
 
 	//UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Drone Control Settings")
 	//float DefaultAltitude = 1.8f;
@@ -157,8 +152,6 @@ private:
 	//void SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction);
 
 	void CheckConnection();
-
-	void NotifyZmqPublisherReady();
 
 	/*UTexture2D* ConvertImageToTexture(const cv::Mat& Image);*/
 };
