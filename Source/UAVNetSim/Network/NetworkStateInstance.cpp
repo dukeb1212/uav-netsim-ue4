@@ -27,22 +27,33 @@ void UNetworkStateInstance::BindToZmqSubscriber(const UWorld::FActorsInitialized
         return;
     }
 
-	AGroundControlStation* GroundControlStation = Cast<AGroundControlStation>(UGameplayStatics::GetActorOfClass(World, AGroundControlStation::StaticClass()));
+    GroundControlStation = Cast<AGroundControlStation>(UGameplayStatics::GetActorOfClass(World, AGroundControlStation::StaticClass()));
 
     if (GroundControlStation)
     {
-        ZmqSubscriberInstance = Cast<AZmqSubscriber>(GroundControlStation->Ns3SubscriberComponent->GetChildActor());
-
-        if (ZmqSubscriberInstance)
-        {
-            ZmqSubscriberInstance->OnMessageReceived.AddDynamic(this, &UNetworkStateInstance::HandleMessage);
-            UE_LOG(LogTemp, Log, TEXT("Successfully bound to Ns3 messages!"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("ZMQ Subscriber not found!"));
-        }
+        GroundControlStation->OnZmqComponentReady.AddDynamic(this, &UNetworkStateInstance::OnZmqSubscriberReady);
     }
+}
+
+void UNetworkStateInstance::OnZmqSubscriberReady(bool IsReady)
+{
+	if (IsReady)
+	{
+		ZmqSubscriberInstance = Cast<AZmqSubscriber>(GroundControlStation->Ns3SubscriberComponent->GetChildActor());
+		if (ZmqSubscriberInstance)
+		{
+			ZmqSubscriberInstance->OnMessageReceived.AddDynamic(this, &UNetworkStateInstance::HandleMessage);
+			UE_LOG(LogTemp, Log, TEXT("ZMQ Subscriber is ready."));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("ZMQ Subscriber not found!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ZMQ Subscriber not yet available. Retrying..."));
+	}
 }
 
 void UNetworkStateInstance::HandleMessage(const FString& Topic, const FString& Message)

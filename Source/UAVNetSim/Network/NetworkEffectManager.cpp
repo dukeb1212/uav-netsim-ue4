@@ -142,7 +142,6 @@ bool UNetworkEffectManager::Tick(float DeltaTime)
 		}
 		TelemetryQueue[i].RemainingDelay -= DeltaTime;
 		if (TelemetryQueue[i].RemainingDelay <= 0) {
-			UE_LOG(LogNetworkEffect, Log, TEXT("Processing Telemetry | Delayed %.2fms"), DeltaTime);
 			TelemetryQueue[i].Callback.ExecuteIfBound(TelemetryQueue[i].Data);
 			TelemetryQueue.RemoveAt(i);
 		}

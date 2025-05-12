@@ -8,6 +8,7 @@
 #include "UAVNetSim/DataStruct/Flow.h"
 #include "NetworkStateInstance.generated.h"
 
+class AGroundControlStation;
 
 UCLASS()
 class UAVNETSIM_API UNetworkStateInstance : public UGameInstance
@@ -39,6 +40,13 @@ public:
 
 private:
     TMap<int32, FFlowData> FlowDataMap;
+
+	AGroundControlStation* GroundControlStation = nullptr;
+
     AZmqSubscriber* ZmqSubscriberInstance = nullptr;
+
     void BindToZmqSubscriber(const UWorld::FActorsInitializedParams& Params);
+
+    UFUNCTION()
+    void OnZmqSubscriberReady(bool IsReady);
 };

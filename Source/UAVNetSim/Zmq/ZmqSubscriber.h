@@ -33,8 +33,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ZMQ")
 	bool IsValidTcpAddress(const FString& Address);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ZMQ Settings")
-	FString ConnectionAddress = "tcp://localhost:5555";
+	UFUNCTION(BlueprintCallable, Category = "ZMQ")
+	void ChangeAddress(const FString& NewAddress);
+
+	UPROPERTY(BlueprintReadOnly, Category = "ZMQ Settings")
+	FString ConnectionAddress = "tcp://localhost:555";
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ZMQ Settings")
 	FString DefaultTopic = "network";
@@ -58,4 +61,5 @@ private:
 
 	void StartZmqSubscribe();
 	
+	void RebindZmqSubscriber(const FString& NewAddress);
 };

@@ -21,14 +21,26 @@ void UNetworkEventManager::BindToZmqPublisher(const UWorld::FActorsInitializedPa
 		return;
 	}
 
-	AGroundControlStation* GroundControlStation = Cast<AGroundControlStation>(UGameplayStatics::GetActorOfClass(World, AGroundControlStation::StaticClass()));
+	GroundControlStation = Cast<AGroundControlStation>(UGameplayStatics::GetActorOfClass(World, AGroundControlStation::StaticClass()));
 	if (GroundControlStation)
 	{
-		ZmqPublisher = Cast<AZmqPublisher>(GroundControlStation->Ns3PublisherComponent->GetChildActor());
+		GroundControlStation->OnZmqComponentReady.AddDynamic(this, &UNetworkEventManager::OnZmqPublisherReady);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Ground Control Station not found!"));
+		return;
+	}
+}
 
+void UNetworkEventManager::OnZmqPublisherReady(bool IsReady)
+{
+	if (IsReady)
+	{
+		ZmqPublisher = Cast<AZmqPublisher>(GroundControlStation->Ns3PublisherComponent->GetChildActor());
 		if (ZmqPublisher)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Successfully bound to ZMQ publisher!"));
+			UE_LOG(LogTemp, Log, TEXT("ZMQ Publisher is ready."));
 		}
 		else
 		{
@@ -37,8 +49,7 @@ void UNetworkEventManager::BindToZmqPublisher(const UWorld::FActorsInitializedPa
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Ground Control Station not found!"));
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("ZMQ Publisher not yet available. Retrying..."));
 	}
 }
 
