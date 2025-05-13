@@ -29,7 +29,7 @@ class AIRSIM_API ACameraDirector : public AActor
 
 public:
     /** Spring arm that will offset the camera */
-    UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(Category = Camera, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     USpringArmComponent* SpringArm;
 
     UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
