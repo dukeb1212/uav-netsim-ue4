@@ -25,14 +25,22 @@ void AZmqSubscriber::BeginPlay()
     StartListening();
 }
 
-// End the subscribe thread
-AZmqSubscriber::~AZmqSubscriber()
+void AZmqSubscriber::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     bRunning = false;
     if (SubscriberThread.joinable())
     {
         SubscriberThread.join();
     }
+    FScopeLock Lock(&ZmqMutex);
+    try {
+        Socket.close();
+        Context.close();
+    }
+    catch (...) {
+        UE_LOG(LogTemp, Warning, TEXT("Error during ZMQ shutdown"));
+    }
+	Super::EndPlay(EndPlayReason);
 }
 
 // Called every frame
