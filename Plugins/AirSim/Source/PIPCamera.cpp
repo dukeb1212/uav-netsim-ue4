@@ -673,8 +673,9 @@ void APIPCamera::setCameraTypeEnabled(int32 type, bool enabled)
     return setCameraTypeEnabled(Type, enabled);
 }
 
-void APIPCamera::setCameraTypeUpdate(int32 type, bool nodisplay)
+void APIPCamera::setCameraTypeUpdate(int32 type, bool nodisplay, bool isZMQ = true)
 {
+	bUsingZMQ = isZMQ;
     ImageType Type = static_cast<ImageType>(type);
     return setCameraTypeUpdate(Type, nodisplay);
 }
@@ -972,13 +973,16 @@ void APIPCamera::CaptureFrame()
                 {
                     capture->CaptureScene();
 
-                    FOnRenderTargetProcessed Callback;
-                    Callback.AddUniqueDynamic(TargetWidget, &UCameraView::UpdateDisplayTexture);
-                    NetworkEffectManager->QueueDelayedRenderTarget(
-                        capture->TextureTarget,
-                        FlowId,
-                        Callback
-                    );
+                    if (bUsingZMQ)
+                    {
+                        FOnRenderTargetProcessed Callback;
+                        Callback.AddUniqueDynamic(TargetWidget, &UCameraView::UpdateDisplayTexture);
+                        NetworkEffectManager->QueueDelayedRenderTarget(
+                            capture->TextureTarget,
+                            FlowId,
+                            Callback
+                        );
+                    }
                 }
                 else
                 {
@@ -1097,6 +1101,11 @@ void APIPCamera::SetRenderTargetResolution(int32 Width, int32 Height, int32 type
     CaptureComp->TextureTarget = RenderTarget;
 
     UE_LOG(LogTemp, Log, TEXT("Updated Render Target Resolution: %d x %d for ImageType %d"), Width, Height, static_cast<int>(type));
+}
+
+void APIPCamera::ClearCaptureTimer()
+{
+    GetWorld()->GetTimerManager().ClearTimer(CaptureTimerHandle);
 }
 
 

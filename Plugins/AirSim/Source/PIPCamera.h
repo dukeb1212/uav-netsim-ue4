@@ -91,7 +91,7 @@ public:
     void setCameraTypeEnabled(int32 type, bool enabled);
 
     UFUNCTION(BlueprintCallable, Category = "Blueprint Wrapper")
-    void setCameraTypeUpdate(int32 type, bool nodisplay);
+    void setCameraTypeUpdate(int32 type, bool nodisplay, bool isZMQ);
 
     UFUNCTION(BlueprintCallable, Category = "Blueprint Wrapper")
     void CaptureRenderTargetToFile(UTextureRenderTarget2D* RenderTarget, FString UAVName);
@@ -107,6 +107,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Capture Settings")
     void SetRenderTargetResolution(int32 Width, int32 Height, int32 type);
+
+    UFUNCTION(BlueprintCallable, Category = "Capture Settings")
+    void ClearCaptureTimer();
 
     UTextureRenderTarget2D* getRenderTarget(const ImageType type, bool if_active);
     UDetectionComponent* getDetectionComponent(const ImageType type, bool if_active) const;
@@ -164,6 +167,7 @@ private: //methods
     int32 FlowId = 1;
 	int64 LastCaptureFrame = 0;
 	int64 CurrentQueueFrame = 0;
+	bool bUsingZMQ = true;
     typedef common_utils::Utils Utils;
     typedef AirSimSettings::CaptureSetting CaptureSetting;
     typedef AirSimSettings::NoiseSetting NoiseSetting;
