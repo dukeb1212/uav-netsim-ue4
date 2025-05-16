@@ -28,11 +28,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "Substance",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/2f6439c2f9584f49809d9b13b16c2ba4"
-		},
-		{
 			"Name": "DatasmithImporter",
 			"Enabled": true
 		},
@@ -78,14 +73,6 @@
 			"Name": "Water",
 			"Enabled": true
 		},
-		{
-			"Name": "OWLLivestreamingToolkit",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/92307b570d474fbc87592b973ce82e3b",
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
-		}
 	],
 	"TargetPlatforms": [
 		"WindowsNoEditor"
