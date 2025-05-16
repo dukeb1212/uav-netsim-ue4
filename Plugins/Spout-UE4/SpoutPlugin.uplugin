@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 {
 	"FileVersion": 3,
 	"FriendlyName": "Spout Plugin",
@@ -19,25 +18,3 @@
 	],
 	"CanContainContent" : "true"
 }
-=======
-{
-	"FileVersion": 3,
-	"FriendlyName": "Spout Plugin",
-	"Version": 3,
-	"VersionName": "GitVersionName",
-	"CreatedBy": "ale",
-	"CreatedByURL": "",
-	"Category": "Spout",
-	"Description": "Enables sending and receiving of textures via Spout framework (http://spout.zeal.co/).",
-	"SupportURL": "https://L05.is",
-	"EnabledByDefault": true,
-	"Modules": [
-		{
-			"Name": "SpoutPlugin",
-			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit"
-		}
-	],
-	"CanContainContent" : "true"
-}
->>>>>>> 5841de1 (pull)
