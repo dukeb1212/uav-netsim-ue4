@@ -56,6 +56,9 @@ namespace UnrealBuildTool.Rules
         {
             PrivatePCHHeaderFile = "Private/SpoutPluginPrivatePCH.h";
 
+            PublicDefinitions.Add("_HAS_EXCEPTIONS=1");
+            bEnableExceptions = true;
+
             PublicIncludePaths.AddRange(
                 new string[] {
                     Path.Combine(ModuleDirectory, "Public"),
