@@ -14,11 +14,20 @@ void UNetworkEffectManager::Initialize(FSubsystemCollectionBase& Collection)
 	NetworkStateInstance = Cast<UNetworkStateInstance>(GetGameInstance());
 	if (!NetworkStateInstance)
 		UE_LOG(LogTemp, Error, TEXT("No Network Instance Found!"));
+
+	VideoFrameTracker = GetWorld()->GetGameState<AVideoFrameTracker>();
+	if (!VideoFrameTracker)
+	{
+		UE_LOG(LogTemp, Error, TEXT("No Video Frame Tracker Found!"));
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UNetworkEffectManager::FindVideoFrameTracker, 0.5f, false);
+	}
+	
 }
 
 void UNetworkEffectManager::Deinitialize()
 {
 	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	TimerHandle.Invalidate();
 	Super::Deinitialize();
 }
 
@@ -57,7 +66,7 @@ void UNetworkEffectManager::QueueCommandExecute(const int32& FlowId, FDelayExecu
 	CommandQueue.Add(NewItem);
 }
 
-void UNetworkEffectManager::QueueDelayedRenderTarget(UTextureRenderTarget2D* SourceRenderTarget, int32 FlowId, const FOnRenderTargetProcessed& Callback)
+void UNetworkEffectManager::QueueDelayedRenderTarget(UTextureRenderTarget2D* SourceRenderTarget, int32 FlowId, const FOnRenderTargetProcessed& Callback, int64 FrameNumber)
 {
 	if (!SourceRenderTarget)
 	{
@@ -92,6 +101,7 @@ void UNetworkEffectManager::QueueDelayedRenderTarget(UTextureRenderTarget2D* Sou
 
 	// Add to delay queue (game thread)
 	FDelayedRenderTargetFrame Frame;
+	Frame.FrameNumber = FrameNumber;
 	Frame.RenderTarget = DelayedTarget;
 	Frame.RemainingDelay = Delay;
 	Frame.bCanSkip = bCanSkip;
@@ -155,12 +165,25 @@ bool UNetworkEffectManager::Tick(float DeltaTime)
 		{
 			if (!Frame.bCanSkip)
 			{
-				Frame.Callback.Broadcast(Frame.RenderTarget);
+				Frame.Callback.Broadcast(Frame.RenderTarget, Frame.FrameNumber);
 			}
 			RenderTargetQueue.RemoveAt(i);
 		}
 	}
 
 	return true;
+}
+
+void UNetworkEffectManager::FindVideoFrameTracker()
+{
+	if (VideoFrameTracker == nullptr)
+	{
+		VideoFrameTracker = GetWorld()->GetGameState<AVideoFrameTracker>();
+		if (VideoFrameTracker == nullptr)
+		{
+			UE_LOG(LogNetworkEffect, Error, TEXT("No Video Frame Tracker Found!"));
+			GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UNetworkEffectManager::FindVideoFrameTracker, 0.5f, false);
+		}
+	}
 }
 

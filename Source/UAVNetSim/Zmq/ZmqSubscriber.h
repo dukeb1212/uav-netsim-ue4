@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include <zmq.hpp>
+#include <atomic>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "Delegates/Delegate.h"
 #include "GameFramework/Actor.h"
 #include "ZmqSubscriber.generated.h"
@@ -35,7 +38,7 @@ public:
 	void ChangeAddress(const FString& NewAddress);
 
 	UPROPERTY(BlueprintReadOnly, Category = "ZMQ Settings")
-	FString ConnectionAddress = "tcp://localhost:555";
+	FString ConnectionAddress = "tcp://127.0.0.1:555";
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ZMQ Settings")
 	FString DefaultTopic = "network";
@@ -44,6 +47,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	void StopListening();
 
 public:	
 	// Called every frame
@@ -55,7 +59,10 @@ private:
 
 	std::thread SubscriberThread;
 	std::atomic<bool> bRunning = false;
+	bool bThreadStopped = true;
 	FCriticalSection ZmqMutex;
+	std::mutex ThreadControlMutex;
+	std::condition_variable ThreadStoppedCV;
 	FString LastMessage;
 
 	void StartZmqSubscribe();

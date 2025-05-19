@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ZmqSubscriber.h"
 #include "UAVNetSim/DetectionBox.h"
+#include "UAVNetSim/VideoFrameTracker.h"
 #include "ZmqAIFeedback.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAIFeedback, const FString&, Class, const float&, Confidence);
@@ -29,4 +30,11 @@ protected:
 
     UFUNCTION()
     void HandleAIFeedback(const FString& Topic, const FString& Message);
+
+private:
+	AVideoFrameTracker* VideoFrameTrackerInstance = nullptr;
+
+	FTimerHandle TimerHandle;
+
+	void FindVideoFrameTracker();
 };

@@ -12,6 +12,9 @@
 #include "NedTransform.h"
 #include "DetectionComponent.h"
 #include "UAVNetSim/Widget/CameraView.h"
+#include "UAVNetSim/Network/NetworkEffectManager.h"
+#include "UAVNetSim/Network/NetworkStateInstance.h"
+#include "UAVNetSim/VideoFrameTracker.h"
 //CinemAirSim
 #include <CineCameraActor.h>
 #include <CineCameraComponent.h>
@@ -164,6 +167,8 @@ private: //members
     FTimerHandle CaptureTimerHandle;
 
 private: //methods
+    UNetworkEffectManager* NetworkEffectManager;
+    AVideoFrameTracker* VideoFrameTracker;
     int32 FlowId = 1;
 	int64 LastCaptureFrame = 0;
 	int64 CurrentQueueFrame = 0;

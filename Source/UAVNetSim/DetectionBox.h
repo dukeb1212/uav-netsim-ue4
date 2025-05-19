@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include <Components/CanvasPanel.h>
+#include "UAVNetSim/VideoFrameTracker.h"
 #include "DetectionBox.generated.h"
 
 /**
@@ -34,6 +35,9 @@ public:
     UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
     UCanvasPanel* RootCanvas;
 
+	UPROPERTY(BlueprintReadWrite)
+	AVideoFrameTracker* VideoFrameTracker;
+
     UFUNCTION(BlueprintCallable, Category = "Overlay")
-    void UpdateBoxes(const TArray<FDetectedBox>& Boxes);
+    void UpdateBoxes(const TArray<FDetectedBox>& Boxes, int64 FrameNumber);
 };

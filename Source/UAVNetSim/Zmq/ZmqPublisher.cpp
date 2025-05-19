@@ -210,24 +210,24 @@ void AZmqPublisher::PublishAllActors(const TArray<TSubclassOf<AActor>>& Override
     }
 }
 
-void AZmqPublisher::PublishRawImage(UTextureRenderTarget2D* RenderTarget)
+void AZmqPublisher::PublishRawImage(UTextureRenderTarget2D* RenderTarget, int64 FrameNumber)
 {
     if (!RenderTarget || !RenderTarget->GameThread_GetRenderTargetResource())
         return;
 
     FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
-    int32 SizeX = RenderTarget->GetSurfaceWidth(); // int32, not float!
+    int32 SizeX = RenderTarget->GetSurfaceWidth();
     int32 SizeY = RenderTarget->GetSurfaceHeight();
 
-    // Double-buffered setup
     if (bBufferInUse) return;
     bBufferInUse = true;
 
     PixelBuffer_Back.SetNumUninitialized(SizeX * SizeY);
     RGBBuffer_Back.SetNumUninitialized(SizeX * SizeY * 3);
 
+    // Capture GPU buffer on render thread
     ENQUEUE_RENDER_COMMAND(CaptureCommand)(
-        [RTResource, SizeX, SizeY, this](FRHICommandListImmediate& RHICmdList)
+        [RTResource, SizeX, SizeY, this, FrameNumber](FRHICommandListImmediate& RHICmdList)
         {
             FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
             RHICmdList.ReadSurfaceData(
@@ -237,9 +237,9 @@ void AZmqPublisher::PublishRawImage(UTextureRenderTarget2D* RenderTarget)
                 ReadFlags
             );
 
-            Async(EAsyncExecution::ThreadPool, [this, SizeX, SizeY]()
+            // Process JPEG compression on background thread
+            Async(EAsyncExecution::ThreadPool, [this, SizeX, SizeY, FrameNumber]()
                 {
-                    // Validate buffer sizes
                     if (PixelBuffer_Back.Num() != SizeX * SizeY || RGBBuffer_Back.Num() != SizeX * SizeY * 3)
                     {
                         UE_LOG(LogTemp, Error, TEXT("Buffer size mismatch!"));
@@ -247,7 +247,6 @@ void AZmqPublisher::PublishRawImage(UTextureRenderTarget2D* RenderTarget)
                         return;
                     }
 
-                    // Safe ParallelFor with bounds checking
                     ParallelFor(SizeX * SizeY, [&](int32 i)
                         {
                             if (i >= 0 && i < PixelBuffer_Back.Num() && (i * 3 + 2) < RGBBuffer_Back.Num())
@@ -258,24 +257,36 @@ void AZmqPublisher::PublishRawImage(UTextureRenderTarget2D* RenderTarget)
                             }
                         });
 
-                    // Compress and send
+                    // Compress to JPEG
                     TArray<uint8> CompressedJPEG;
                     CompressWithTurboJPEG(RGBBuffer_Back, SizeX, SizeY, CompressedJPEG);
 
+                    // Create full message: [8 bytes FrameNumber][JPEG data]
+                    TArray<uint8> FullMessage;
+                    const int32 HeaderSize = sizeof(int64);
+                    FullMessage.SetNumUninitialized(HeaderSize + CompressedJPEG.Num());
+
+                    // Copy FrameNumber
+                    FMemory::Memcpy(FullMessage.GetData(), &FrameNumber, sizeof(int64));
+                    // Copy JPEG data after FrameNumber
+                    FMemory::Memcpy(FullMessage.GetData() + HeaderSize, CompressedJPEG.GetData(), CompressedJPEG.Num());
+
+                    // Send via ZeroMQ
                     FScopeLock Lock(&ZmqMutex);
                     try {
-                        zmq::message_t Msg(CompressedJPEG.Num());
-                        FMemory::Memcpy(Msg.data(), CompressedJPEG.GetData(), CompressedJPEG.Num());
+                        zmq::message_t Msg(FullMessage.Num());
+                        FMemory::Memcpy(Msg.data(), FullMessage.GetData(), FullMessage.Num());
                         Socket.send(Msg, zmq::send_flags::dontwait);
                     }
                     catch (const zmq::error_t& e) {
                         UE_LOG(LogTemp, Error, TEXT("ZMQ send error: %s"), UTF8_TO_TCHAR(e.what()));
                     }
 
-                    bBufferInUse = false; // Release buffer
+                    bBufferInUse = false;
                 });
         });
 }
+
 
 void AZmqPublisher::CompressWithTurboJPEG(const TArray<uint8>& RGBData, int32 Width, int32 Height, TArray<uint8>& OutJPEG)
 {

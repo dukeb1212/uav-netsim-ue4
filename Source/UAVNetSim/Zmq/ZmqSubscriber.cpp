@@ -1,8 +1,9 @@
-
+﻿
 
 
 #include "ZmqSubscriber.h"
 #include "Async/Async.h"
+
 #include "Kismet/GameplayStatics.h"
 
 
@@ -27,11 +28,8 @@ void AZmqSubscriber::BeginPlay()
 
 void AZmqSubscriber::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    bRunning = false;
-    if (SubscriberThread.joinable())
-    {
-        SubscriberThread.join();
-    }
+    StopListening();
+
     FScopeLock Lock(&ZmqMutex);
     try {
         Socket.close();
@@ -52,7 +50,9 @@ void AZmqSubscriber::Tick(float DeltaTime)
 
 void AZmqSubscriber::StartListening()
 {
+    std::lock_guard<std::mutex> ThreadLock(ThreadControlMutex);
     bRunning = true;
+    bThreadStopped = false;
 
     SubscriberThread = std::thread([this]() {
         while (bRunning)
@@ -93,31 +93,79 @@ void AZmqSubscriber::StartListening()
                 UE_LOG(LogTemp, Error, TEXT("ZMQ receive error: %s"), UTF8_TO_TCHAR(e.what()));
             }
         }
+
+        std::lock_guard<std::mutex> Lock(ThreadControlMutex);
+        bThreadStopped = true;
+        ThreadStoppedCV.notify_one();
         });
 
     // Detach when destroy
     SubscriberThread.detach();
 }
 
+void AZmqSubscriber::StopListening()
+{
+    {
+        std::lock_guard<std::mutex> ThreadLock(ThreadControlMutex);
+        bRunning = false;
+    }
+
+    // Đợi thread thoát ra
+    std::unique_lock<std::mutex> WaitLock(ThreadControlMutex);
+    ThreadStoppedCV.wait(WaitLock, [this]() { return bThreadStopped; });
+}
+
 bool AZmqSubscriber::IsValidTcpAddress(const FString& Address)
 {
-    const FRegexPattern Pattern(TEXT("^tcp:\\/\\/((25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)(\\.(?!$)|$)){4}:\\d{1,5}$"));
+    UE_LOG(LogTemp, Warning, TEXT("Checking Valide Tcp Address for %s"), *Address);
+    const FRegexPattern Pattern(TEXT("^tcp:\\/\\/(\\d{1,3}\\.){3}\\d{1,3}:\\d{1,5}$"));
     FRegexMatcher Matcher(Pattern, Address);
-    return Matcher.FindNext();
+
+    if (!Matcher.FindNext()) return false;
+
+    // Tách IP và port để kiểm tra giá trị hợp lệ
+    FString IpPort = Address.Mid(6); // bỏ "tcp://"
+    FString Ip, PortStr;
+    if (!IpPort.Split(":", &Ip, &PortStr)) return false;
+
+    TArray<FString> Octets;
+    Ip.ParseIntoArray(Octets, TEXT("."));
+    if (Octets.Num() != 4) return false;
+
+    for (const FString& Octet : Octets)
+    {
+        int32 Val = FCString::Atoi(*Octet);
+        if (Val < 0 || Val > 255) return false;
+    }
+
+    int32 Port = FCString::Atoi(*PortStr);
+    if (Port < 1 || Port > 65535) return false;
+
+    return true;
 }
 
 void AZmqSubscriber::ChangeAddress(const FString& NewAddress)
 {
-    FScopeLock Lock(&ZmqMutex);
-    bRunning = false; // Signal thread to stop
-    Socket.close();
+    UE_LOG(LogTemp, Warning, TEXT("ZMQ Subscriber rebinding..."));
 
-    if (SubscriberThread.joinable())
-    {
-        SubscriberThread.join();
+    StopListening();
+
+    FScopeLock Lock(&ZmqMutex);
+    
+    try {
+        Socket.close();
+    }
+    catch (...) {
+        UE_LOG(LogTemp, Warning, TEXT("Error closing ZMQ socket"));
     }
 
-    Socket = zmq::socket_t(Context, ZMQ_SUB);
+
+    try {
+        Socket = zmq::socket_t(Context, ZMQ_SUB);
+    }
+    catch (const zmq::error_t& e) {
+        UE_LOG(LogTemp, Error, TEXT("Socket recreate failed: %s"), UTF8_TO_TCHAR(e.what()));
+    }
 
     RebindZmqSubscriber(NewAddress);
 }
@@ -143,6 +191,7 @@ void AZmqSubscriber::StartZmqSubscribe()
 void AZmqSubscriber::RebindZmqSubscriber(const FString& NewAddress)
 {
     ConnectionAddress = NewAddress;
+    UE_LOG(LogTemp, Warning, TEXT("ZMQ Subscriber rebinding to %s"), *ConnectionAddress);
     StartZmqSubscribe();
     StartListening();
 }

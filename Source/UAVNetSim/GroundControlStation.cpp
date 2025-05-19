@@ -76,7 +76,7 @@ void AGroundControlStation::NotifyZmqPublisherReady()
 		AZmqPublisher* AIPublisher = Cast<AZmqPublisher>(AIPublisherComponent->GetChildActor());
 		AIPublisher->ChangeAddress("tcp://*:5557");
 		AZmqAIFeedback* AIFeedback = Cast<AZmqAIFeedback>(AISubscriberComponent->GetChildActor());
-		AIFeedback->ChangeAddress("tcp://localhost:557");
+		AIFeedback->ChangeAddress("tcp://127.0.0.1:557");
 	}
 	else
 	{

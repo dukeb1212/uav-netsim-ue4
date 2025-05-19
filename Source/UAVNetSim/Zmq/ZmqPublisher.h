@@ -79,7 +79,7 @@ public:
         const TMap<FString, FString>& OverrideExtraFields);
 
     UFUNCTION(BlueprintCallable, Category = "ZMQ")
-    void PublishRawImage(UTextureRenderTarget2D* RenderTarget);
+    void PublishRawImage(UTextureRenderTarget2D* RenderTarget, int64 FrameNumber);
 
     void CompressWithTurboJPEG(const TArray<uint8>& RGBData, int32 Width, int32 Height, TArray<uint8>& OutJPEG);
 

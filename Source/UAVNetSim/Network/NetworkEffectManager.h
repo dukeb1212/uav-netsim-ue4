@@ -6,6 +6,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "../DataStruct/Telemetry.h"
 #include "NetworkStateInstance.h"
+#include "UAVNetSim/VideoFrameTracker.h"
 #include "RHICommandList.h"
 #include "RenderGraphUtils.h"
 #include "RenderTargetPool.h"
@@ -16,7 +17,7 @@
 
 DECLARE_DELEGATE_OneParam(FDelayedTelemetryCallback, const FTelemetryData&);
 DECLARE_DELEGATE_OneParam(FDelayExecuteCallback, const float&);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRenderTargetProcessed, UTextureRenderTarget2D*, RenderTarget);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRenderTargetProcessed, UTextureRenderTarget2D*, RenderTarget, int64, FrameNumber);
 /**
  * 
  */
@@ -48,6 +49,7 @@ struct FDelayedRenderTargetFrame
 	UPROPERTY()
 	UTextureRenderTarget2D* RenderTarget;
 
+	int64 FrameNumber;
 	float RemainingDelay;
 	bool bCanSkip;
 	FOnRenderTargetProcessed Callback;
@@ -70,7 +72,7 @@ public:
 
 	void QueueCommandExecute(const int32& FlowId, FDelayExecuteCallback Callback);
 
-	void QueueDelayedRenderTarget(UTextureRenderTarget2D* SourceRenderTarget, int32 FlowId, const FOnRenderTargetProcessed& Callback);
+	void QueueDelayedRenderTarget(UTextureRenderTarget2D* SourceRenderTarget, int32 FlowId, const FOnRenderTargetProcessed& Callback, int64 FrameNumber);
 
 	float CalculateDelay(float MeanDelay, float MeanJitter);
 
@@ -98,4 +100,9 @@ private:
 	TArray<FDelayExecute> CommandQueue;
 
 	UNetworkStateInstance* NetworkStateInstance = nullptr;
+
+	AVideoFrameTracker* VideoFrameTracker = nullptr;
+
+	FTimerHandle TimerHandle;
+	void FindVideoFrameTracker();
 };

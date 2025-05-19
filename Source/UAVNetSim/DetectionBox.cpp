@@ -7,8 +7,9 @@
 #include <Components/Border.h>
 #include "Blueprint/WidgetTree.h"
 #include <Components/Image.h>
+#include <chrono>
 
-void UDetectionBox::UpdateBoxes(const TArray<FDetectedBox>& Boxes)
+void UDetectionBox::UpdateBoxes(const TArray<FDetectedBox>& Boxes, int64 FrameNumber)
 {
     if (!RootCanvas) return;
     RootCanvas->ClearChildren();
@@ -22,6 +23,14 @@ void UDetectionBox::UpdateBoxes(const TArray<FDetectedBox>& Boxes)
 
     const float LineThickness = 3.f;
     const FLinearColor LineColor = FLinearColor::Green;
+
+	VideoFrameTracker = GetWorld()->GetGameState<AVideoFrameTracker>();
+
+	if (VideoFrameTracker)
+	{
+		FVideoFrameTrack& FrameTrack = VideoFrameTracker->AddOrGetFrame(FrameNumber);
+		FrameTrack.DetectionBoxDrawnTimestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+	}
 
     for (const FDetectedBox& Box : Boxes)
     {

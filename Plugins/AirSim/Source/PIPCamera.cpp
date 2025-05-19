@@ -3,8 +3,7 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "UAVNetSim/Network/NetworkEffectManager.h"
-#include "UAVNetSim/Network/NetworkStateInstance.h"
+#include "UAVNetSim/DataStruct/VideoFrameTrack.h"
 #include "UAVNetSim/DataStruct/Flow.h"
 #include "Engine/World.h"
 #include "ImageUtils.h"
@@ -105,6 +104,9 @@ void APIPCamera::PostInitializeComponents()
     }
     //set initial focal length
     camera_->CurrentFocalLength = 11.9;
+
+    NetworkEffectManager = GetGameInstance()->GetSubsystem<UNetworkEffectManager>();
+    VideoFrameTracker = GetWorld()->GetGameState<AVideoFrameTracker>();
 
 }
 
@@ -932,8 +934,6 @@ void APIPCamera::CaptureFrame()
     float CaptureInterval = 1.0f / FMath::Clamp(FPS, 5.0f, 60.0f);
     GetWorld()->GetTimerManager().SetTimer(CaptureTimerHandle, this, &APIPCamera::CaptureFrame, CaptureInterval, false);
 
-    UNetworkEffectManager* NetworkEffectManager = GetGameInstance()->GetSubsystem<UNetworkEffectManager>();
-
     //FString TimeStamp = FDateTime::Now().ToString();
     //UE_LOG(LogTemp, Log, TEXT("Start Capture Request for frame %d at time %s"), CurrentQueueFrame, *TimeStamp);
 
@@ -943,6 +943,7 @@ void APIPCamera::CaptureFrame()
     if (!NetworkEffectManager)
     {
         UE_LOG(LogTemp, Warning, TEXT("NetworkEffectManager not found! Cannot apply network effects."));
+        NetworkEffectManager = GetGameInstance()->GetSubsystem<UNetworkEffectManager>();
         return;
     }
 
@@ -973,6 +974,15 @@ void APIPCamera::CaptureFrame()
                 {
                     capture->CaptureScene();
 
+                    if (VideoFrameTracker)
+                    {
+						std::chrono::nanoseconds TimeStamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+                        FVideoFrameTrack& NewFrame = VideoFrameTracker->AddOrGetFrame(ReturnFrame);
+                        NewFrame.UavCaptureTimestamp = TimeStamp.count();
+                        NewFrame.UavPosition = GetActorLocation();
+						NewFrame.UavYaw = GetActorRotation().Yaw;
+                    }
+
                     if (bUsingZMQ)
                     {
                         FOnRenderTargetProcessed Callback;
@@ -980,7 +990,8 @@ void APIPCamera::CaptureFrame()
                         NetworkEffectManager->QueueDelayedRenderTarget(
                             capture->TextureTarget,
                             FlowId,
-                            Callback
+                            Callback,
+                            ReturnFrame
                         );
                     }
                 }
