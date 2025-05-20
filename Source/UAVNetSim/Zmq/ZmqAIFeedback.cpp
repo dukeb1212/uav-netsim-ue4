@@ -29,6 +29,24 @@ void AZmqAIFeedback::BeginPlay()
     }
 }
 
+void AZmqAIFeedback::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// Cleanup
+	OnMessageReceived.RemoveDynamic(this, &AZmqAIFeedback::HandleAIFeedback);
+	if (DetectionBoxWidget)
+	{
+		DetectionBoxWidget->RemoveFromParent();
+		DetectionBoxWidget = nullptr;
+	}
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+	if (VideoFrameTrackerInstance)
+	{
+		VideoFrameTrackerInstance = nullptr;
+	}
+
+    Super::EndPlay(EndPlayReason);
+}
+
 void AZmqAIFeedback::FindVideoFrameTracker()
 {
 	VideoFrameTrackerInstance = GetWorld()->GetGameState<AVideoFrameTracker>();

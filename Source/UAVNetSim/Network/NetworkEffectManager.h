@@ -17,7 +17,7 @@
 
 DECLARE_DELEGATE_OneParam(FDelayedTelemetryCallback, const FTelemetryData&);
 DECLARE_DELEGATE_OneParam(FDelayExecuteCallback, const float&);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRenderTargetProcessed, UTextureRenderTarget2D*, RenderTarget, int64, FrameNumber);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRenderTargetProcessed, UTextureRenderTarget2D*, int64);
 /**
  * 
  */

@@ -244,6 +244,7 @@ void APIPCamera::Tick(float DeltaTime)
 
 void APIPCamera::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    Callback.RemoveAll(TargetWidget);
     if (noise_materials_.Num()) {
         for (unsigned int image_type = 0; image_type < imageTypeCount(); ++image_type) {
             if (noise_materials_[image_type + 1])
@@ -985,8 +986,7 @@ void APIPCamera::CaptureFrame()
 
                     if (bUsingZMQ)
                     {
-                        FOnRenderTargetProcessed Callback;
-                        Callback.AddUniqueDynamic(TargetWidget, &UCameraView::UpdateDisplayTexture);
+                        Callback.AddUObject(TargetWidget, &UCameraView::UpdateDisplayTexture);
                         NetworkEffectManager->QueueDelayedRenderTarget(
                             capture->TextureTarget,
                             FlowId,

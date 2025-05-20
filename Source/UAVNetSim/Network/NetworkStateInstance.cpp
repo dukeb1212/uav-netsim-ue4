@@ -18,6 +18,19 @@ void UNetworkStateInstance::Init()
     InsertOrAssign(1, Flow::Create());
 }
 
+void UNetworkStateInstance::Shutdown()
+{
+	// Unbind the network from the ZMQ subscriber
+	FWorldDelegates::OnWorldInitializedActors.RemoveAll(this);
+	if (ZmqSubscriberInstance)
+	{
+		ZmqSubscriberInstance->OnMessageReceived.RemoveDynamic(this, &UNetworkStateInstance::HandleMessage);
+		ZmqSubscriberInstance = nullptr;
+	}
+
+    Super::Shutdown();
+}
+
 void UNetworkStateInstance::BindToZmqSubscriber(const UWorld::FActorsInitializedParams& Params)
 {
     UWorld* World = GetWorld();

@@ -216,6 +216,9 @@ void AZmqPublisher::PublishRawImage(UTextureRenderTarget2D* RenderTarget, int64 
         return;
 
     FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
+    if (!RTResource)
+        return;
+
     int32 SizeX = RenderTarget->GetSurfaceWidth();
     int32 SizeY = RenderTarget->GetSurfaceHeight();
 
@@ -229,6 +232,13 @@ void AZmqPublisher::PublishRawImage(UTextureRenderTarget2D* RenderTarget, int64 
     ENQUEUE_RENDER_COMMAND(CaptureCommand)(
         [RTResource, SizeX, SizeY, this, FrameNumber](FRHICommandListImmediate& RHICmdList)
         {
+            if (!RTResource || !RTResource->TextureRHI.IsValid())
+            {
+                UE_LOG(LogTemp, Warning, TEXT("RTResource is null or has no TextureRHI"));
+                bBufferInUse = false;
+                return;
+            }
+
             FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
             RHICmdList.ReadSurfaceData(
                 RTResource->GetRenderTargetTexture(),

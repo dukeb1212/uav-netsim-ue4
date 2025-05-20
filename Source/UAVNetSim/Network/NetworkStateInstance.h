@@ -17,6 +17,7 @@ class UAVNETSIM_API UNetworkStateInstance : public UGameInstance
 	
 public:
     virtual void Init() override;
+	virtual void Shutdown() override;
 
     // Store network data from JSON to Flow data type
     void ParseAndStoreNetworkData(const FString& JsonMessage);

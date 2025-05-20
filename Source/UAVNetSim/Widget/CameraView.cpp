@@ -4,7 +4,7 @@
 #include "CameraView.h"
 #include <chrono>
 
-void UCameraView::UpdateDisplayTexture_Implementation(UTextureRenderTarget2D* RenderTarget, int64 FrameNumber)
+void UCameraView::UpdateDisplayTexture(UTextureRenderTarget2D* RenderTarget, int64 FrameNumber)
 {
 	if (VideoFrameTracker)
 	{
@@ -13,8 +13,40 @@ void UCameraView::UpdateDisplayTexture_Implementation(UTextureRenderTarget2D* Re
 		Frame.GcsReceiveTimestamp = TimeStamp.count();
 	}
 
-	if (ZmqPublisher)
-	{
-		ZmqPublisher->PublishRawImage(RenderTarget, FrameNumber);
+    if (RenderTarget)
+    {
+        if (RenderTarget->Resource)
+		{
+            if (DynamicMaterial)
+            {
+                DynamicMaterial->SetTextureParameterValue(FName("VideoTexture"), RenderTarget);
+				DisplayImage->SetBrushFromMaterial(DynamicMaterial);
+            }
+			else UE_LOG(LogTemp, Error, TEXT("DynamicMaterial is null!"));
+           
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("RenderTarget resource is null!"));
+			return;
+		}
 	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("RenderTarget is null!"));
+		return;
+    }
+
+    if (ZmqPublisher)
+    {
+		if (IsValid(ZmqPublisher)) ZmqPublisher->PublishRawImage(RenderTarget, FrameNumber);
+		else 
+			UE_LOG(LogTemp, Error, TEXT("ZmqPublisher is not valid!!"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("ZmqPublisher is nullptr"));
+    }
+
+	RenderTarget->RemoveFromRoot();
 }

@@ -735,13 +735,22 @@ void AGroundControlStation::GetTelemetryDataByName(FString UAVName, int32 FlowId
 			Telemetry.Velocity = FVector(drone_state.kinematics_estimated.twist.linear.x(), drone_state.kinematics_estimated.twist.linear.y(), drone_state.kinematics_estimated.twist.linear.z());
 			Telemetry.BatteryLevel = 100.0f;  // Placeholder
 			Telemetry.IsConnected = AirSimClient->isApiControlEnabled(TCHAR_TO_UTF8(*UAVName));
+			TWeakObjectPtr<AGroundControlStation> SafeThis(this);
 
-			NetworkEffectManager->QueueTelemetryUpdate(Telemetry, FlowId, FDelayedTelemetryCallback::CreateLambda([this](const FTelemetryData& DelayedTelemetry) {
+			NetworkEffectManager->QueueTelemetryUpdate(Telemetry, FlowId, FDelayedTelemetryCallback::CreateLambda([SafeThis](const FTelemetryData& DelayedTelemetry) {
 				// Push telemetry data to the main thread
-				AsyncTask(ENamedThreads::GameThread, [this, DelayedTelemetry]()
+				AsyncTask(ENamedThreads::GameThread, [SafeThis, DelayedTelemetry]()
 					{
+						if (!SafeThis.IsValid()) return;
+
+						AGroundControlStation* Self = SafeThis.Get();
+						if (Self->bShuttingDown || IsEngineExitRequested() || !Self->bIsConnected || IsGarbageCollecting())
+						{
+							UE_LOG(LogTemp, Error, TEXT("Drone not connected!"));
+							return;
+						}
 						// Check if telemetry data for this UAV already exists
-						for (FTelemetryData& ExistingTelemetry : ListTelemetryData)
+						for (FTelemetryData& ExistingTelemetry : Self->ListTelemetryData)
 						{
 							if (ExistingTelemetry.Name == DelayedTelemetry.Name)
 							{
@@ -752,7 +761,7 @@ void AGroundControlStation::GetTelemetryDataByName(FString UAVName, int32 FlowId
 							}
 						}
 						// If not found, add as a new entry
-						ListTelemetryData.Add(DelayedTelemetry);
+						Self->ListTelemetryData.Add(DelayedTelemetry);
 						//UE_LOG(LogTemp, Log, TEXT("Telemetry added for %s"), *Telemetry.Name);
 					});
 				}));

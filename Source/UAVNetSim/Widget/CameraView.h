@@ -19,20 +19,18 @@ class UAVNETSIM_API UCameraView : public UUserWidget
 	GENERATED_BODY()
 	
 public:
+
     UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
     UImage* DisplayImage;
 
-	UPROPERTY(BlueprintReadWrite)
+    UPROPERTY(BlueprintReadWrite, Transient)
 	AVideoFrameTracker* VideoFrameTracker;
 
-	UPROPERTY(BlueprintReadWrite)
+    UPROPERTY(BlueprintReadWrite, Transient)
 	AZmqPublisher* ZmqPublisher;
 
-    UPROPERTY(BlueprintReadWrite)
+    UPROPERTY(BlueprintReadWrite, Transient)
     UMaterialInstanceDynamic* DynamicMaterial;
 
-    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Texture")
     void UpdateDisplayTexture(UTextureRenderTarget2D* RenderTarget, int64 FrameNumber);
-
-    void UpdateDisplayTexture_Implementation(UTextureRenderTarget2D* RenderTarget, int64 FrameNumber);
 };

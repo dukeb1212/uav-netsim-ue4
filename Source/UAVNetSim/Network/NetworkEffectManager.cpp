@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "NetworkEffectManager.h"
@@ -80,16 +80,22 @@ void UNetworkEffectManager::QueueDelayedRenderTarget(UTextureRenderTarget2D* Sou
 	{
 		const FFlowData& FlowData = *NetworkStateInstance->GetFlowDataById(FlowId);
 		Delay = CalculateDelay(FlowData.MeanDelay, FlowData.MeanJitter);
-		bCanSkip = (FMath::FRandRange(0.0f, 1.0f) < CalculatePacketLossRate(FlowData.PacketLossL3, FlowData.TxPackets));
+		//bCanSkip = (FMath::FRandRange(0.0f, 1.0f) < CalculatePacketLossRate(FlowData.PacketLossL3, FlowData.TxPackets));
 	}
 
 	// Create or reuse a GPU render target for delayed frame
 	UTextureRenderTarget2D* DelayedTarget = DuplicateObject(SourceRenderTarget, this);
+	DelayedTarget->AddToRoot();
 	DelayedTarget->ClearColor = FLinearColor::Black;
 	DelayedTarget->UpdateResourceImmediate(true);
 
 	ENQUEUE_RENDER_COMMAND(CopyRenderTargetCmd)([SourceRenderTarget, DelayedTarget](FRHICommandListImmediate& RHICmdList)
 		{
+			if (!DelayedTarget->GetRenderTargetResource())
+			{
+				UE_LOG(LogNetworkEffect, Error, TEXT("Failed to initialize DelayedTarget resource."));
+				return;
+			}
 			FRHITexture2D* Src = SourceRenderTarget->GetRenderTargetResource()->GetRenderTargetTexture();
 			FRHITexture2D* Dst = DelayedTarget->GetRenderTargetResource()->GetRenderTargetTexture();
 			if (Src && Dst)
@@ -163,7 +169,7 @@ bool UNetworkEffectManager::Tick(float DeltaTime)
 		Frame.RemainingDelay -= DeltaTime;
 		if (Frame.RemainingDelay <= 0.0f)
 		{
-			if (!Frame.bCanSkip)
+			if (Frame.Callback.IsBound())
 			{
 				Frame.Callback.Broadcast(Frame.RenderTarget, Frame.FrameNumber);
 			}

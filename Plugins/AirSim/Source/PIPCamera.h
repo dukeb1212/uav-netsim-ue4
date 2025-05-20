@@ -37,6 +37,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
     UCameraView* TargetWidget;
 
+    FOnRenderTargetProcessed Callback;
+
     APIPCamera(const FObjectInitializer& ObjectInitializer); //CinemAirSim
 
     virtual void PostInitializeComponents() override;
