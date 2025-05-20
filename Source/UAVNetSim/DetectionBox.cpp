@@ -15,7 +15,7 @@ void UDetectionBox::UpdateBoxes(const TArray<FDetectedBox>& Boxes, int64 FrameNu
     RootCanvas->ClearChildren();
 
     // Reference size assumed in your detection system
-    const FVector2D ReferenceResolution(1920.0f, 1080.0f);
+    const FVector2D ReferenceResolution(1280.0f, 720.0f);
 
     // Get actual canvas size
     FVector2D ActualCanvasSize = RootCanvas->GetCachedGeometry().GetLocalSize();
