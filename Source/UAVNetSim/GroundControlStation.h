@@ -156,9 +156,14 @@ private:
 
 	//void SimulateNetworkRequest(int32 FlowId, TFunction<void()> RequestFunction);
 
+	FString StatLogFilePath;
+
 	void CheckConnection();
 
 	void NotifyZmqPublisherReady();
 
+	void InitStatLogging();
+
+	void LogFrameStat();
 	/*UTexture2D* ConvertImageToTexture(const cv::Mat& Image);*/
 };

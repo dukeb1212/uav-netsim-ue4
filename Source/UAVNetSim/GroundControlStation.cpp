@@ -43,6 +43,8 @@ void AGroundControlStation::BeginPlay()
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Log, TEXT("BeginPlay called."));
 
+	InitStatLogging();
+
 	NetworkEffectManager = GetGameInstance()->GetSubsystem<UNetworkEffectManager>();
 
 	if (!NetworkEffectManager)
@@ -87,10 +89,38 @@ void AGroundControlStation::NotifyZmqPublisherReady()
 	}
 }
 
+void AGroundControlStation::InitStatLogging()
+{
+	FString Directory = FPaths::ProjectSavedDir() + TEXT("Logs/");
+	IFileManager::Get().MakeDirectory(*Directory, true);
+	StatLogFilePath = Directory + TEXT("GCS_StatLog_") + FDateTime::Now().ToString() + ".csv";
+
+	FString Header = TEXT("Timestamp,FPS,GameThread(ms),RenderThread(ms),GPU(ms),RAM(MB)\n");
+	FFileHelper::SaveStringToFile(Header, *StatLogFilePath);
+}
+
+void AGroundControlStation::LogFrameStat()
+{
+	float TimeSeconds = GetWorld()->GetTimeSeconds();
+
+	float FPS = 1.0f / FApp::GetDeltaTime();
+
+	float GameThreadMS = FPlatformTime::ToMilliseconds(GGameThreadTime);
+	float RenderThreadMS = FPlatformTime::ToMilliseconds(GRenderThreadTime);
+	float GPUFrameMS = FPlatformTime::ToMilliseconds(GGPUFrameTime);
+
+	const FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
+	float RAM_MB = MemoryStats.UsedPhysical / (1024.0f * 1024.0f); // Convert bytes to MB
+
+	FString LogLine = FString::Printf(TEXT("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n"), TimeSeconds, FPS, GameThreadMS, RenderThreadMS, GPUFrameMS, RAM_MB);
+	FFileHelper::SaveStringToFile(LogLine, *StatLogFilePath, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), EFileWrite::FILEWRITE_Append);
+}
+
 // Called every frame
 void AGroundControlStation::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	LogFrameStat();
 	if (!bIsConnected) return;
 }
 

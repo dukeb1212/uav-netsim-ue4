@@ -14,7 +14,7 @@ public class UAVNetSim : ModuleRules
 
         string EnvFilePath = Path.Combine(ModuleDirectory, "..", "..", ".env");
 
-        string VcpkgRootPath = "D:/EpicGames/UAVNetSim/vcpkg_installed";
+        string VcpkgRootPath = "C:/UAVNetSim/vcpkg_installed";
 
         if (File.Exists(EnvFilePath))
         {
