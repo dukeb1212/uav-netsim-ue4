@@ -40,6 +40,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Network|Events")
     int32 FindFlowIdByType(ENetworkAppType AppType) const;
 
+    UFUNCTION(BlueprintCallable, Category = "Network|Events")
+    void ResetLocalId();
+
 // Variables
 private:
     TMap<int32, FNetworkFlow> ActiveFlows;

@@ -105,7 +105,7 @@ void APIPCamera::PostInitializeComponents()
     //set initial focal length
     camera_->CurrentFocalLength = 11.9;
 
-    NetworkEffectManager = GetGameInstance()->GetSubsystem<UNetworkEffectManager>();
+    
     VideoFrameTracker = GetWorld()->GetGameState<AVideoFrameTracker>();
 
 }
@@ -141,6 +141,8 @@ void APIPCamera::BeginPlay()
 
     if (PacketLossParamCollection)
         PacketLossParamInstance = this->GetWorld()->GetParameterCollectionInstance(PacketLossParamCollection);
+
+    NetworkEffectManager = GetGameInstance()->GetSubsystem<UNetworkEffectManager>();
 }
 
 msr::airlib::ProjectionMatrix APIPCamera::getProjectionMatrix(const APIPCamera::ImageType image_type) const

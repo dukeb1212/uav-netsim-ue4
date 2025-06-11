@@ -79,7 +79,7 @@ int32 UNetworkEventManager::StartNetworkApplication(ENetworkAppType AppType, con
 	FJsonSerializer::Serialize(EventData.ToSharedRef(), Writer);
 
 	// Publish start event
-	ZmqPublisher->PublishString("network_events", JsonString);
+	ZmqPublisher->PublishString("ns3", JsonString);
 	UE_LOG(LogTemp, Warning, TEXT("Publish event: %s"), *JsonString);
 
 	FFlowData FlowData = Flow::Create();
@@ -106,7 +106,7 @@ void UNetworkEventManager::StopNetworkApplication(int32 FlowId)
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
 	FJsonSerializer::Serialize(EventData.ToSharedRef(), Writer);
 
-	ZmqPublisher->PublishString("network_events", JsonString);
+	ZmqPublisher->PublishString("ns3", JsonString);
 	UE_LOG(LogTemp, Warning, TEXT("Publish event: %s"), *JsonString);
 
 	// Remove from active flows
@@ -130,6 +130,11 @@ int32 UNetworkEventManager::FindFlowIdByType(ENetworkAppType AppType) const
 		}
 	}
 	return -1;
+}
+
+void UNetworkEventManager::ResetLocalId()
+{
+	LastAssignedLocalId = 1;
 }
 
 void UNetworkEventManager::OnFlowDataUpdated(int32 Ns3FlowId, ENetworkAppType AppType)
