@@ -106,62 +106,74 @@ void UNetworkStateInstance::ParseAndStoreNetworkData(const FString& JsonMessage)
 
     if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
     {
-        // Ensure "conditions" exists
-        const TSharedPtr<FJsonObject>* Conditions;
-        if (!JsonObject->TryGetObjectField(TEXT("conditions"), Conditions))
-        {
-            UE_LOG(LogTemp, Error, TEXT("JSON parsing error: 'conditions' field missing!"));
-            return;
-        }
+        //// Ensure "conditions" exists
+        //const TSharedPtr<FJsonObject>* Conditions;
+        //if (!JsonObject->TryGetObjectField(TEXT("conditions"), Conditions))
+        //{
+        //    UE_LOG(LogTemp, Error, TEXT("JSON parsing error: 'conditions' field missing!"));
+        //    return;
+        //}
 
-        TSharedPtr<FJsonObject> ValidConditions = *Conditions;
-        // Ensure "flows" exists
-        const TSharedPtr<FJsonObject>* Flows;
-        if (!ValidConditions->TryGetObjectField(TEXT("flows"), Flows))
-        {
-            UE_LOG(LogTemp, Error, TEXT("JSON parsing error: 'flows' field missing!"));
-            return;
-        }
+        //TSharedPtr<FJsonObject> ValidConditions = *Conditions;
+        //// Ensure "flows" exists
+        //const TSharedPtr<FJsonObject>* Flows;
+        //if (!ValidConditions->TryGetObjectField(TEXT("flows"), Flows))
+        //{
+        //    UE_LOG(LogTemp, Error, TEXT("JSON parsing error: 'flows' field missing!"));
+        //    return;
+        //}
 
-        TSharedPtr<FJsonObject> ValidFlows = *Flows;
+        //TSharedPtr<FJsonObject> ValidFlows = *Flows;
 
-        // Iterate through flows
-        for (const auto& FlowPair : ValidFlows->Values)
-        {
-            int32 FlowID = FCString::Atoi(*FlowPair.Key);
-            TSharedPtr<FJsonObject> FlowDataJson = FlowPair.Value->AsObject();
+        //// Iterate through flows
+        //for (const auto& FlowPair : ValidFlows->Values)
+        //{
+        //    int32 FlowID = FCString::Atoi(*FlowPair.Key);
+        //    TSharedPtr<FJsonObject> FlowDataJson = FlowPair.Value->AsObject();
 
-            if (FlowDataJson.IsValid())
-            {
-                FFlowData FlowData;
-                FlowData.SourceIPAddress = FlowDataJson->GetStringField("src");
-                FlowData.DestinationIPAddress = FlowDataJson->GetStringField("dst");
-                FlowData.MeanDelay = FlowDataJson->GetNumberField("meanDelay");
-                FlowData.MeanJitter = FlowDataJson->GetNumberField("meanJitter");
-                FlowData.PacketLossL3 = FlowDataJson->GetNumberField("packetLossL3");
-                FlowData.RxBytes = FlowDataJson->GetIntegerField("rxBytes");
-                FlowData.RxPackets = FlowDataJson->GetIntegerField("rxPackets");
-                FlowData.TxBytes = FlowDataJson->GetIntegerField("txBytes");
-                FlowData.TxPackets = FlowDataJson->GetIntegerField("txPackets");
+        //    if (FlowDataJson.IsValid())
+        //    {
+        //        FFlowData FlowData;
+        //        FlowData.SourceIPAddress = FlowDataJson->GetStringField("src");
+        //        FlowData.DestinationIPAddress = FlowDataJson->GetStringField("dst");
+        //        FlowData.MeanDelay = FlowDataJson->GetNumberField("meanDelay");
+        //        FlowData.MeanJitter = FlowDataJson->GetNumberField("meanJitter");
+        //        FlowData.PacketLossL3 = FlowDataJson->GetNumberField("packetLossL3");
+        //        FlowData.RxBytes = FlowDataJson->GetIntegerField("rxBytes");
+        //        FlowData.RxPackets = FlowDataJson->GetIntegerField("rxPackets");
+        //        FlowData.TxBytes = FlowDataJson->GetIntegerField("txBytes");
+        //        FlowData.TxPackets = FlowDataJson->GetIntegerField("txPackets");
 
-                // Store or update flow data
-                FlowDataMap.FindOrAdd(FlowID) = FlowData;
-            }
-        }
+        //        // Store or update flow data
+        //        FlowDataMap.FindOrAdd(FlowID) = FlowData;
+        //    }
+        //}
 
-        // Extract and print time
-        double Time;
-        if (!ValidConditions->TryGetNumberField(TEXT("time"), Time))
-        {
-            UE_LOG(LogTemp, Error, TEXT("Failed to retrieve 'time' field from JSON"));
-        }
+        //// Extract and print time
+        //double Time;
+        //if (!ValidConditions->TryGetNumberField(TEXT("time"), Time))
+        //{
+        //    UE_LOG(LogTemp, Error, TEXT("Failed to retrieve 'time' field from JSON"));
+        //}
+
+        FFlowData FlowData;
+        FlowData.MeanDelay = JsonObject->GetNumberField("meanDelay");
+        FlowData.MeanJitter = JsonObject->GetNumberField("meanJitter");
+        FlowData.PacketLossL3 = JsonObject->GetNumberField("packetLoss");
+        FlowData.RxBytes = 0;
+        FlowData.RxPackets = 0;
+        FlowData.TxBytes = 0;
+        FlowData.TxPackets = 0;
+
+        // Store or update flow data
+        FlowDataMap.FindOrAdd(1) = FlowData;
 
 
         // Print flow data
         for (const auto& Pair : FlowDataMap)
         {
             const FFlowData& Data = Pair.Value;
-            FString OutputMessage = FString::Printf(TEXT("Flow ID: %d\nSourceIP: %s\nDestIP: %s\nMeanDelay: %.2f us\nMeanJitter: %.2f us\nPacketLoss: %.2f%%\nRxBytes: %d\nRxPackets: %d\nTxBytes: %d\nTxPackets: %d"),
+            FString OutputMessage = FString::Printf(TEXT("Flow ID: %d\nSourceIP: %s\nDestIP: %s\nMeanDelay: %.2f ms\nMeanJitter: %.2f ms\nPacketLoss: %.2f%%\nRxBytes: %d\nRxPackets: %d\nTxBytes: %d\nTxPackets: %d"),
                 Pair.Key, *Data.SourceIPAddress, *Data.DestinationIPAddress, Data.MeanDelay, Data.MeanJitter, Data.PacketLossL3, Data.RxBytes, Data.RxPackets, Data.TxBytes, Data.TxPackets);
 
             UE_LOG(LogTemp, Log, TEXT("%s"), *OutputMessage);

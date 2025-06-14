@@ -989,9 +989,16 @@ void APIPCamera::CaptureFrame()
                     if (bUsingZMQ)
                     {
                         Callback.AddUObject(TargetWidget, &UCameraView::UpdateDisplayTexture);
-                        NetworkEffectManager->QueueDelayedRenderTarget(
+                        /*NetworkEffectManager->QueueDelayedRenderTarget(
                             capture->TextureTarget,
                             FlowId,
+                            Callback,
+                            ReturnFrame
+                        );*/
+
+                        NetworkEffectManager->QueueDelayedRenderTarget(
+                            capture->TextureTarget,
+                            1,
                             Callback,
                             ReturnFrame
                         );

@@ -82,12 +82,12 @@ int32 UNetworkEventManager::StartNetworkApplication(ENetworkAppType AppType, con
 	ZmqPublisher->PublishString("ns3", JsonString);
 	UE_LOG(LogTemp, Warning, TEXT("Publish event: %s"), *JsonString);
 
-	FFlowData FlowData = Flow::Create();
+	/*FFlowData FlowData = Flow::Create();
 	auto* NetworkState = Cast<UNetworkStateInstance>(GetGameInstance());
 
 	if (NetworkState) {
 		NetworkState->InsertOrAssign(LocalId, FlowData);
-	}
+	}*/
 
 	return LocalId;
 }

@@ -43,7 +43,7 @@ void AGroundControlStation::BeginPlay()
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Log, TEXT("BeginPlay called."));
 
-	InitStatLogging();
+	//InitStatLogging();
 
 	NetworkEffectManager = GetGameInstance()->GetSubsystem<UNetworkEffectManager>();
 
@@ -120,7 +120,7 @@ void AGroundControlStation::LogFrameStat()
 void AGroundControlStation::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	LogFrameStat();
+	//LogFrameStat();
 	if (!bIsConnected) return;
 }
 

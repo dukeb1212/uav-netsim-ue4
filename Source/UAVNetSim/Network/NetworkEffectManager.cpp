@@ -38,7 +38,8 @@ void UNetworkEffectManager::QueueTelemetryUpdate(const FTelemetryData& Telemetry
 	if (NetworkStateInstance && NetworkStateInstance->ContainsFlowId(FlowId)) {
 		const FFlowData& FlowData = *NetworkStateInstance->GetFlowDataById(FlowId);
 		Delay = CalculateDelay(FlowData.MeanDelay, FlowData.MeanJitter);
-		PacketLossRate = CalculatePacketLossRate(FlowData.PacketLossL3, FlowData.TxPackets);
+		//PacketLossRate = CalculatePacketLossRate(FlowData.PacketLossL3, FlowData.TxPackets);
+		PacketLossRate = FlowData.PacketLossL3;
 	}
 	FDelayedTelemetry NewItem;
 	NewItem.Data = TelemetryData;
@@ -56,7 +57,8 @@ void UNetworkEffectManager::QueueCommandExecute(const int32& FlowId, FDelayExecu
 	if (NetworkStateInstance && NetworkStateInstance->ContainsFlowId(FlowId)) {
 		const FFlowData& FlowData = *NetworkStateInstance->GetFlowDataById(FlowId);
 		Delay = CalculateDelay(FlowData.MeanDelay, FlowData.MeanJitter);
-		PacketLossRate = CalculatePacketLossRate(FlowData.PacketLossL3, FlowData.TxPackets);
+		//PacketLossRate = CalculatePacketLossRate(FlowData.PacketLossL3, FlowData.TxPackets);
+		PacketLossRate = FlowData.PacketLossL3;
 	}
 	FDelayExecute NewItem;
 	NewItem.FlowId = FlowId;
@@ -117,7 +119,7 @@ void UNetworkEffectManager::QueueDelayedRenderTarget(UTextureRenderTarget2D* Sou
 
 float UNetworkEffectManager::CalculateDelay(float MeanDelay, float MeanJitter)
 {
-	return FMath::Max(FMath::FRandRange((MeanDelay - MeanJitter) / 1000000, (MeanDelay + MeanJitter) / 1000000), 0.0f);
+	return FMath::Max(FMath::FRandRange((MeanDelay - MeanJitter) / 1000, (MeanDelay + MeanJitter) / 1000), 0.0f);
 }
 
 float UNetworkEffectManager::CalculatePacketLossRate(float PacketLoss, float TxPackets)
